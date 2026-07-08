@@ -1,6 +1,6 @@
 // js/app.js
 
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwL9YA1IsjcoRnWnDfi2JFbK5M6UMZ-seMF8AeoWiYq94jhMMu8XH_WwwVKTaAbHpipbQ/exec';
+const API_URL = 'https://functions.yandexcloud.net/d4e9jqmhlvji2aagia41?integration=raw';
 
 document.addEventListener('DOMContentLoaded', () => {
     loadProducts();
@@ -224,12 +224,12 @@ function showCheckoutForm() {
         if (e.target === overlay) overlay.remove();
     });
 
-    document.getElementById('checkout-form').addEventListener('submit', function (e) {
+    document.getElementById('checkout-form').addEventListener('submit', async function(e) {
         e.preventDefault();
 
         const payBtn = document.getElementById('pay-btn');
         const errorEl = document.getElementById('checkout-error');
-
+        
         if (cart.length === 0) {
             errorEl.textContent = 'Корзина пуста';
             return;
@@ -240,7 +240,7 @@ function showCheckoutForm() {
         errorEl.textContent = '';
 
         const orderData = {
-            action: 'createPayment',
+            path: '/api/create-payment',
             items: cart.map(item => ({
                 id: item.id,
                 qty: item.qty
@@ -251,25 +251,31 @@ function showCheckoutForm() {
             deliveryAddress: document.getElementById('customer-address').value.trim()
         };
 
-        // Очищаем корзину
-        cart = [];
-        saveCart();
-        updateCartUI();
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(orderData)
+            });
 
-        // Создаём скрытую форму и отправляем (обходит CORS)
-        const hiddenForm = document.createElement('form');
-        hiddenForm.method = 'POST';
-        hiddenForm.action = APPS_SCRIPT_URL;
-        hiddenForm.acceptCharset = 'utf-8';
-        hiddenForm.style.display = 'none';
+            const result = await response.json();
 
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'json';
-        input.value = JSON.stringify(orderData);
+            if (result.error) {
+                throw new Error(result.error);
+            }
 
-        hiddenForm.appendChild(input);
-        document.body.appendChild(hiddenForm);
-        hiddenForm.submit();
+            if (result.paymentUrl) {
+                cart = [];
+                saveCart();
+                updateCartUI();
+                window.location.href = result.paymentUrl;
+            } else {
+                throw new Error('Не получена ссылка на оплату');
+            }
+        } catch (err) {
+            errorEl.textContent = 'Ошибка: ' + err.message;
+            payBtn.disabled = false;
+            payBtn.textContent = 'Перейти к оплате';
+        }
     });
 }
