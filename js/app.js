@@ -1,6 +1,6 @@
 // js/app.js
 
-const API_URL = 'https://d5djm54iuohgreoj1bch.apigw.yandexcloud.net';
+const API_URL = 'https://d5djm54iuohgreoj1bch.nkhmighe.apigw.yandexcloud.net';
 
 document.addEventListener('DOMContentLoaded', () => {
     loadProducts();
