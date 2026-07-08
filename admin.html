@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Админ-панель</title>
+  <link rel="stylesheet" href="css/admin.css">
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script defer src="js/firebase-config.js"></script>
+  <script defer src="js/admin.js"></script>
+</head>
+<body>
+  <!-- Экран входа -->
+  <div id="login-screen" class="screen">
+    <div class="login-box">
+      <h1>Вход в админ-панель</h1>
+      <form id="login-form">
+        <input type="email" id="login-email" placeholder="Email" required>
+        <input type="password" id="login-password" placeholder="Пароль" required>
+        <button type="submit" class="btn">Войти</button>
+      </form>
+      <p id="login-error" class="error"></p>
+    </div>
+  </div>
+
+  <!-- Панель управления -->
+  <div id="admin-screen" class="screen" style="display: none;">
+    <header class="admin-header">
+      <h1>Админ-панель</h1>
+      <button id="logout-btn" class="btn-outline">Выйти</button>
+    </header>
+
+    <div class="admin-tabs">
+      <button class="tab-btn active" data-tab="products">Товары</button>
+      <button class="tab-btn" data-tab="orders">Заказы</button>
+    </div>
+
+    <!-- Вкладка Товары -->
+    <div id="tab-products" class="tab-content active">
+      <div class="toolbar">
+        <button id="add-product-btn" class="btn">+ Добавить товар</button>
+      </div>
+      <div id="products-list" class="products-list">
+        <!-- Таблица товаров -->
+      </div>
+    </div>
+
+    <!-- Вкладка Заказы (пока заглушка) -->
+    <div id="tab-orders" class="tab-content">
+      <p>Заказы появятся позже, после подключения оплаты.</p>
+    </div>
+
+    <!-- Модальное окно: Добавить/Редактировать товар -->
+    <div id="product-modal" class="modal">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2 id="modal-title">Добавить товар</h2>
+        <form id="product-form">
+          <input type="hidden" id="product-id">
+          
+          <label>Название</label>
+          <input type="text" id="product-title" required>
+          
+          <label>Описание</label>
+          <textarea id="product-description" rows="3" required></textarea>
+          
+          <label>Цена (₽)</label>
+          <input type="number" id="product-price" required>
+          
+          <label>Остаток (шт)</label>
+          <input type="number" id="product-stock" required>
+          
+          <label>URL изображения</label>
+          <input type="url" id="product-image" placeholder="img/tovar.jpg или https://..." required>
+          
+          <label class="checkbox-label">
+            <input type="checkbox" id="product-has-badge"> Показывать бирку
+          </label>
+          
+          <div id="badge-settings" style="display: none;">
+            <label>Текст бирки</label>
+            <input type="text" id="badge-text" placeholder="Хит, Скидка, Новинка...">
+            
+            <label>Цвет фона</label>
+            <input type="color" id="badge-bg" value="#e53e3e">
+            
+            <label>Цвет текста</label>
+            <input type="color" id="badge-color" value="#ffffff">
+          </div>
+          
+          <button type="submit" class="btn">Сохранить</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Модальное окно: Поставка -->
+    <div id="supply-modal" class="modal">
+      <div class="modal-content modal-small">
+        <span class="close">&times;</span>
+        <h2>Принять поставку</h2>
+        <p id="supply-product-name"></p>
+        <form id="supply-form">
+          <input type="hidden" id="supply-product-id">
+          <label>Текущий остаток: <strong id="supply-current-stock"></strong></label>
+          <label>Добавить количество</label>
+          <input type="number" id="supply-qty" min="1" required>
+          <button type="submit" class="btn">Принять</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
