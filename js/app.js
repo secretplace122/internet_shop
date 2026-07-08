@@ -1,72 +1,48 @@
-// js/app.js
-
 const API_URL = 'https://functions.yandexcloud.net/d4e9jqmhlvji2aagia41?integration=raw';
+const REQUEST_TIMEOUT_MS = 15000; // 15 секунд — чтобы не висело бесконечно
 
 document.addEventListener('DOMContentLoaded', () => {
-    loadProducts();
-    setupCart();
+  loadProducts();
+  setupCart();
 });
 
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
 // ==================== ЗАГРУЗКА ТОВАРОВ ====================
 async function loadProducts() {
-    const container = document.getElementById('products-container');
-    container.innerHTML = '<p>Загрузка товаров...</p>';
+  const container = document.getElementById('products-container');
+  container.innerHTML = '<p>Загрузка товаров...</p>';
 
-    try {
-        if (typeof db === 'undefined') {
-            throw new Error('Firebase не подключена');
-        }
-        const snapshot = await db.collection('products').where('stock', '>', 0).get();
-        const products = [];
-        snapshot.forEach(doc => {
-            products.push({ id: doc.id, ...doc.data() });
-        });
-        renderProducts(products);
-    } catch (error) {
-        console.warn('Ошибка загрузки из Firestore, используем мок-данные:', error);
-        const mockProducts = [
-            {
-                id: '1',
-                title: 'Умные часы',
-                description: 'Стильные часы с функцией отслеживания здоровья.',
-                price: 4990,
-                image: 'https://via.placeholder.com/300x200?text=Watch',
-                badge: { text: 'Хит', color: '#fff', bgColor: '#e53e3e' }
-            },
-            {
-                id: '2',
-                title: 'Беспроводные наушники',
-                description: 'Качественный звук и активное шумоподавление.',
-                price: 3490,
-                image: 'https://via.placeholder.com/300x200?text=Headphones',
-                badge: null
-            },
-            {
-                id: '3',
-                title: 'Портативная колонка',
-                description: 'Мощный звук в компактном корпусе.',
-                price: 2490,
-                image: 'https://via.placeholder.com/300x200?text=Speaker',
-                badge: { text: '-20%', color: '#fff', bgColor: '#38a169' }
-            }
-        ];
-        renderProducts(mockProducts);
+  try {
+    if (typeof db === 'undefined') {
+      throw new Error('Firebase не подключена');
     }
+    const snapshot = await db.collection('products').where('stock', '>', 0).get();
+    const products = [];
+    snapshot.forEach(doc => products.push({ id: doc.id, ...doc.data() }));
+    renderProducts(products);
+  } catch (error) {
+    console.warn('Ошибка загрузки из Firestore, используем мок-данные:', error);
+    const mockProducts = [
+      { id: '1', title: 'Умные часы', description: 'Стильные часы с функцией отслеживания здоровья.', price: 4990, image: 'https://via.placeholder.com/300x200?text=Watch', badge: { text: 'Хит', color: '#fff', bgColor: '#e53e3e' } },
+      { id: '2', title: 'Беспроводные наушники', description: 'Качественный звук и активное шумоподавление.', price: 3490, image: 'https://via.placeholder.com/300x200?text=Headphones', badge: null },
+      { id: '3', title: 'Портативная колонка', description: 'Мощный звук в компактном корпусе.', price: 2490, image: 'https://via.placeholder.com/300x200?text=Speaker', badge: { text: '-20%', color: '#fff', bgColor: '#38a169' } }
+    ];
+    renderProducts(mockProducts);
+  }
 }
 
 function renderProducts(products) {
-    const container = document.getElementById('products-container');
-    if (products.length === 0) {
-        container.innerHTML = '<p>Товаров пока нет.</p>';
-        return;
-    }
-    container.innerHTML = products.map(p => {
-        const badgeHtml = p.badge && p.badge.text ?
-            `<span class="badge" style="background-color: ${p.badge.bgColor}; color: ${p.badge.color}">${p.badge.text}</span>`
-            : '';
-        return `
+  const container = document.getElementById('products-container');
+  if (products.length === 0) {
+    container.innerHTML = '<p>Товаров пока нет.</p>';
+    return;
+  }
+  container.innerHTML = products.map(p => {
+    const badgeHtml = p.badge && p.badge.text
+      ? `<span class="badge" style="background-color: ${p.badge.bgColor}; color: ${p.badge.color}">${p.badge.text}</span>`
+      : '';
+    return `
       <div class="product-card" data-id="${p.id}">
         <div style="position: relative;">
           <img src="${p.image}" alt="${p.title}" loading="lazy">
@@ -80,90 +56,94 @@ function renderProducts(products) {
         </div>
       </div>
     `;
-    }).join('');
+  }).join('');
 
-    document.querySelectorAll('.add-to-cart').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const card = e.target.closest('.product-card');
-            const id = card.dataset.id;
-            const product = products.find(p => p.id === id);
-            addToCart(product);
-        });
+  document.querySelectorAll('.add-to-cart').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const card = e.target.closest('.product-card');
+      const id = card.dataset.id;
+      const product = products.find(p => p.id === id);
+      addToCart(product);
     });
+  });
 }
 
 // ==================== КОРЗИНА ====================
 function setupCart() {
-    updateCartUI();
-    const modal = document.getElementById('cart-modal');
-    const floatBtn = document.getElementById('cart-float-btn');
-    const closeBtn = modal.querySelector('.close');
+  updateCartUI();
+  const modal = document.getElementById('cart-modal');
+  const floatBtn = document.getElementById('cart-float-btn');
+  const closeBtn = modal.querySelector('.close');
 
-    floatBtn.addEventListener('click', () => {
-        renderCart();
-        modal.style.display = 'flex';
-    });
+  floatBtn.addEventListener('click', () => {
+    renderCart();
+    modal.style.display = 'flex';
+  });
 
-    closeBtn.addEventListener('click', () => {
-        modal.style.display = 'none';
-    });
+  closeBtn.addEventListener('click', () => {
+    modal.style.display = 'none';
+  });
 
-    window.addEventListener('click', (e) => {
-        if (e.target === modal) modal.style.display = 'none';
-    });
+  window.addEventListener('click', (e) => {
+    if (e.target === modal) modal.style.display = 'none';
+  });
 
-    document.getElementById('checkout-btn').addEventListener('click', () => {
-        if (cart.length === 0) {
-            alert('Корзина пуста');
-            return;
-        }
-        modal.style.display = 'none';
-        showCheckoutForm();
-    });
+  document.getElementById('checkout-btn').addEventListener('click', () => {
+    if (cart.length === 0) {
+      alert('Корзина пуста');
+      return;
+    }
+    modal.style.display = 'none';
+    showCheckoutForm();
+  });
 }
 
 function addToCart(product) {
-    const existing = cart.find(item => item.id === product.id);
-    if (existing) {
-        existing.qty += 1;
-    } else {
-        cart.push({
-            id: product.id,
-            title: product.title,
-            price: product.price,
-            image: product.image,
-            qty: 1
-        });
-    }
-    saveCart();
-    updateCartUI();
+  const existing = cart.find(item => item.id === product.id);
+  if (existing) {
+    existing.qty += 1;
+  } else {
+    cart.push({
+      id: product.id,
+      title: product.title,
+      price: product.price,
+      image: product.image,
+      qty: 1
+    });
+  }
+  saveCart();
+  updateCartUI();
 }
 
 function removeFromCart(id) {
-    cart = cart.filter(item => item.id !== id);
-    saveCart();
-    updateCartUI();
-    renderCart();
+  cart = cart.filter(item => item.id !== id);
+  saveCart();
+  updateCartUI();
+  renderCart();
 }
 
 function saveCart() {
-    localStorage.setItem('cart', JSON.stringify(cart));
+  localStorage.setItem('cart', JSON.stringify(cart));
 }
 
 function updateCartUI() {
-    const count = cart.reduce((sum, item) => sum + item.qty, 0);
-    document.getElementById('cart-count').textContent = count;
+  const count = cart.reduce((sum, item) => sum + item.qty, 0);
+  const el = document.getElementById('cart-count');
+  if (el) el.textContent = count;
 }
 
 function renderCart() {
-    const container = document.getElementById('cart-items');
-    const totalEl = document.getElementById('cart-total-price');
-    if (cart.length === 0) {
-        container.innerHTML = '<p>Корзина пуста</p>';
-        totalEl.textContent = '0';
-        return;
-    }
-    container.innerHTML = cart.map(item => `
+  const container = document.getElementById('cart-items');
+  const totalEl = document.getElementById('cart-total-price');
+  if (!container || !totalEl) return;
+
+  if (cart.length === 0) {
+    container.innerHTML = '<p>Корзина пуста</p>';
+    totalEl.textContent = '0';
+    return;
+  }
+
+  container.innerHTML = cart.map(item => `
     <div class="cart-item">
       <span>${item.title} x${item.qty}</span>
       <span>${(item.price * item.qty).toLocaleString()} ₽</span>
@@ -171,26 +151,26 @@ function renderCart() {
     </div>
   `).join('');
 
-    document.querySelectorAll('.remove-item').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            removeFromCart(e.target.dataset.id);
-        });
-    });
+  document.querySelectorAll('.remove-item').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      removeFromCart(e.target.dataset.id);
+    }, { once: true });
+  });
 
-    const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    totalEl.textContent = total.toLocaleString();
+  const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  totalEl.textContent = total.toLocaleString();
 }
 
 // ==================== ОФОРМЛЕНИЕ ЗАКАЗА ====================
 function showCheckoutForm() {
-    const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
 
-    const overlay = document.createElement('div');
-    overlay.className = 'modal';
-    overlay.style.display = 'flex';
-    overlay.id = 'checkout-modal';
+  const overlay = document.createElement('div');
+  overlay.className = 'modal';
+  overlay.style.display = 'flex';
+  overlay.id = 'checkout-modal';
 
-    overlay.innerHTML = `
+  overlay.innerHTML = `
     <div class="modal-content">
       <span class="close" id="checkout-close">&times;</span>
       <h2>Оформление заказа</h2>
@@ -214,67 +194,76 @@ function showCheckoutForm() {
     </div>
   `;
 
-    document.body.appendChild(overlay);
+  document.body.appendChild(overlay);
 
-    document.getElementById('checkout-close').addEventListener('click', () => {
-        overlay.remove();
-    });
+  document.getElementById('checkout-close').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) overlay.remove();
-    });
+  document.getElementById('checkout-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
 
-    document.getElementById('checkout-form').addEventListener('submit', async function (e) {
-        e.preventDefault();
+    const payBtn = document.getElementById('pay-btn');
+    const errorEl = document.getElementById('checkout-error');
 
-        const payBtn = document.getElementById('pay-btn');
-        const errorEl = document.getElementById('checkout-error');
+    if (cart.length === 0) {
+      errorEl.textContent = 'Корзина пуста';
+      return;
+    }
 
-        if (cart.length === 0) {
-            errorEl.textContent = 'Корзина пуста';
-            return;
-        }
+    payBtn.disabled = true;
+    payBtn.textContent = 'Создаём заказ...';
+    errorEl.textContent = '';
 
-        payBtn.disabled = true;
-        payBtn.textContent = 'Создаём заказ...';
-        errorEl.textContent = '';
+    const orderData = {
+      items: cart.map(item => ({
+        id: item.id,
+        qty: item.qty
+      })),
+      customerName: document.getElementById('customer-name').value.trim(),
+      customerPhone: document.getElementById('customer-phone').value.trim(),
+      customerEmail: document.getElementById('customer-email').value.trim(),
+      deliveryAddress: document.getElementById('customer-address').value.trim()
+    };
 
-        const orderData = {
-            items: cart.map(item => ({
-                id: item.id,
-                qty: item.qty
-            })),
-            customerName: document.getElementById('customer-name').value.trim(),
-            customerPhone: document.getElementById('customer-phone').value.trim(),
-            customerEmail: document.getElementById('customer-email').value.trim(),
-            deliveryAddress: document.getElementById('customer-address').value.trim()
-        };
+    try {
+      // fetch с ручным таймаутом (чтобы не висело по 10 минут)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-        try {
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(orderData)
-            });
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData),
+        signal: controller.signal
+      });
 
-            const result = await response.json();
+      clearTimeout(timeoutId);
 
-            if (result.error) {
-                throw new Error(result.error);
-            }
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Ошибка сервера: ${response.status}`);
+      }
 
-            if (result.paymentUrl) {
-                cart = [];
-                saveCart();
-                updateCartUI();
-                window.location.href = result.paymentUrl;
-            } else {
-                throw new Error('Не получена ссылка на оплату');
-            }
-        } catch (err) {
-            errorEl.textContent = 'Ошибка: ' + err.message;
-            payBtn.disabled = false;
-            payBtn.textContent = 'Перейти к оплате';
-        }
-    });
+      const result = await response.json();
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      if (result.paymentUrl) {
+        cart = [];
+        saveCart();
+        updateCartUI();
+        window.location.href = result.paymentUrl;
+      } else {
+        throw new Error('Не получена ссылка на оплату');
+      }
+    } catch (err) {
+      clearTimeout(timeoutId);
+      errorEl.textContent = 'Ошибка: ' + err.message;
+      payBtn.disabled = false;
+      payBtn.textContent = 'Перейти к оплате';
+      console.error('Checkout error:', err);
+    }
+  });
 }
