@@ -1,6 +1,6 @@
 // js/app.js
 
-const API_URL = 'https://functions.yandexcloud.net/d4e9jqmhlvji2aagia41?integration=raw';
+const API_URL = 'https://d5djm54iuohgreoj1bch.apigw.yandexcloud.net';
 
 document.addEventListener('DOMContentLoaded', () => {
     loadProducts();
@@ -252,7 +252,7 @@ function showCheckoutForm() {
         };
 
         try {
-            const response = await fetch(API_URL, {
+            const response = await fetch(API_URL + '/api/create-payment', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(orderData)
