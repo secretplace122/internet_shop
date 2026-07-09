@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
-// ==================== ЗАГРУЗКА ТОВАРОВ ====================
 async function loadProducts() {
   const container = document.getElementById('products-container');
   container.innerHTML = '<p>Загрузка товаров...</p>';
@@ -66,7 +65,6 @@ function renderProducts(products) {
   });
 }
 
-// ==================== КОРЗИНА ====================
 function setupCart() {
   updateCartUI();
   const modal = document.getElementById('cart-modal');
@@ -159,7 +157,6 @@ function renderCart() {
   totalEl.textContent = total.toLocaleString();
 }
 
-// ==================== ОФОРМЛЕНИЕ ЗАКАЗА ====================
 function showCheckoutForm() {
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
 
@@ -223,9 +220,11 @@ function showCheckoutForm() {
       deliveryAddress: document.getElementById('customer-address').value.trim()
     };
 
+    let timeoutId;
+
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      timeoutId = setTimeout(() => controller.abort(), 15000);
 
       const response = await fetch(API_URL + '/create-payment', {
         method: 'POST',
