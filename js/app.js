@@ -226,7 +226,7 @@ function showCheckoutForm() {
       const controller = new AbortController();
       timeoutId = setTimeout(() => controller.abort(), 15000);
 
-      const response = await fetch(API_URL + '/create-payment', {
+      const response = await fetch(API_URL + '?path=/create-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderData),
