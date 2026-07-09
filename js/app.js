@@ -1,5 +1,4 @@
-const API_URL = 'https://functions.yandexcloud.net/d4e9jqmhlvji2aagia41?integration=raw';
-const REQUEST_TIMEOUT_MS = 15000; // 15 секунд — чтобы не висело бесконечно
+const API_URL = 'https://functions.yandexcloud.net/d4eengms62slq876jbka';
 
 document.addEventListener('DOMContentLoaded', () => {
   loadProducts();
@@ -22,11 +21,10 @@ async function loadProducts() {
     snapshot.forEach(doc => products.push({ id: doc.id, ...doc.data() }));
     renderProducts(products);
   } catch (error) {
-    console.warn('Ошибка загрузки из Firestore, используем мок-данные:', error);
+    console.warn('Ошибка загрузки из Firestore, резервные данные:', error);
     const mockProducts = [
-      { id: '1', title: 'Умные часы', description: 'Стильные часы с функцией отслеживания здоровья.', price: 4990, image: 'https://via.placeholder.com/300x200?text=Watch', badge: { text: 'Хит', color: '#fff', bgColor: '#e53e3e' } },
-      { id: '2', title: 'Беспроводные наушники', description: 'Качественный звук и активное шумоподавление.', price: 3490, image: 'https://via.placeholder.com/300x200?text=Headphones', badge: null },
-      { id: '3', title: 'Портативная колонка', description: 'Мощный звук в компактном корпусе.', price: 2490, image: 'https://via.placeholder.com/300x200?text=Speaker', badge: { text: '-20%', color: '#fff', bgColor: '#38a169' } }
+      { id: '1', title: 'Умные часы', description: 'Стильные часы.', price: 4990, image: 'https://via.placeholder.com/300x200?text=Watch', badge: { text: 'Хит', color: '#fff', bgColor: '#e53e3e' } },
+      { id: '2', title: 'Беспроводные наушники', description: 'Качественный звук.', price: 3490, image: 'https://via.placeholder.com/300x200?text=Headphones', badge: null }
     ];
     renderProducts(mockProducts);
   }
@@ -211,7 +209,7 @@ function showCheckoutForm() {
     }
 
     payBtn.disabled = true;
-    payBtn.textContent = 'Создаём заказ...';
+    payBtn.textContent = 'Создаём платёж...';
     errorEl.textContent = '';
 
     const orderData = {
@@ -226,11 +224,10 @@ function showCheckoutForm() {
     };
 
     try {
-      // fetch с ручным таймаутом (чтобы не висело по 10 минут)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-      const response = await fetch(API_URL, {
+      const response = await fetch(API_URL + '/create-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderData),
@@ -250,11 +247,11 @@ function showCheckoutForm() {
         throw new Error(result.error);
       }
 
-      if (result.paymentUrl) {
+      if (result.confirmationUrl) {
         cart = [];
         saveCart();
         updateCartUI();
-        window.location.href = result.paymentUrl;
+        window.location.href = result.confirmationUrl;
       } else {
         throw new Error('Не получена ссылка на оплату');
       }

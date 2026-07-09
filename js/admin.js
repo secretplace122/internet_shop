@@ -1,13 +1,11 @@
-// js/admin.js
 document.addEventListener('DOMContentLoaded', () => {
   const auth = firebase.auth();
   const db = firebase.firestore();
 
-  // Экраны
   const loginScreen = document.getElementById('login-screen');
   const adminScreen = document.getElementById('admin-screen');
 
-  // Форма входа
+  // ---------- ВХОД ----------
   document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('login-email').value;
@@ -21,32 +19,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Отслеживание авторизации
   auth.onAuthStateChanged((user) => {
     if (user) {
       loginScreen.style.display = 'none';
       adminScreen.style.display = 'block';
       loadProducts();
+      loadOrders();
     } else {
       loginScreen.style.display = 'block';
       adminScreen.style.display = 'none';
     }
   });
 
-  // Выход
   document.getElementById('logout-btn').addEventListener('click', () => auth.signOut());
 
-  // Вкладки
+  // ---------- ВКЛАДКИ ----------
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      const tabId = 'tab-' + btn.dataset.tab;
+      document.getElementById(tabId).classList.add('active');
+      if (btn.dataset.tab === 'orders') loadOrders();
     });
   });
 
-  // Модальные окна
+  // ---------- МОДАЛЬНЫЕ ОКНА ----------
   const productModal = document.getElementById('product-modal');
   const supplyModal = document.getElementById('supply-modal');
 
@@ -62,12 +61,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === supplyModal) supplyModal.style.display = 'none';
   });
 
-  // Чекбокс бирки
   document.getElementById('product-has-badge').addEventListener('change', (e) => {
     document.getElementById('badge-settings').style.display = e.target.checked ? 'block' : 'none';
   });
 
-  // Кнопка Добавить товар
+  // ---------- ТОВАРЫ ----------
   document.getElementById('add-product-btn').addEventListener('click', () => {
     document.getElementById('modal-title').textContent = 'Добавить товар';
     document.getElementById('product-form').reset();
@@ -76,7 +74,6 @@ document.addEventListener('DOMContentLoaded', () => {
     productModal.style.display = 'flex';
   });
 
-  // Сохранение товара
   document.getElementById('product-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('product-id').value;
@@ -130,7 +127,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Загрузка товаров
   async function loadProducts() {
     const tbody = document.querySelector('#products-list');
     tbody.innerHTML = '<p>Загрузка...</p>';
@@ -138,9 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const snapshot = await db.collection('products').get();
       const products = [];
-      snapshot.forEach(doc => {
-        products.push({ id: doc.id, ...doc.data() });
-      });
+      snapshot.forEach(doc => products.push({ id: doc.id, ...doc.data() }));
 
       if (products.length === 0) {
         tbody.innerHTML = '<p>Товаров пока нет. Нажмите "Добавить товар".</p>';
@@ -178,7 +172,6 @@ document.addEventListener('DOMContentLoaded', () => {
         </table>
       `;
 
-      // Обработчики кнопок
       tbody.querySelectorAll('.edit').forEach(btn => {
         btn.addEventListener('click', () => {
           const id = btn.dataset.id;
@@ -232,5 +225,53 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     productModal.style.display = 'flex';
+  }
+
+  // ---------- ЗАКАЗЫ ----------
+  async function loadOrders() {
+    const container = document.getElementById('orders-list');
+    container.innerHTML = '<p>Загрузка заказов...</p>';
+
+    try {
+      const snapshot = await db.collection('orders')
+        .orderBy('createdAt', 'desc')
+        .limit(50)
+        .get();
+
+      const orders = [];
+      snapshot.forEach(doc => orders.push({ id: doc.id, ...doc.data() }));
+
+      if (orders.length === 0) {
+        container.innerHTML = '<p>Заказов пока нет.</p>';
+        return;
+      }
+
+      container.innerHTML = orders.map(order => {
+        const items = order.items || [];
+        const itemsHtml = items.map(item =>
+          `<li>${item.title} x${item.qty} — ${item.price * item.qty} ₽</li>`
+        ).join('');
+
+        const date = order.createdAt
+          ? new Date(order.createdAt.seconds * 1000).toLocaleString('ru-RU')
+          : '—';
+
+        return `
+          <div class="order-card">
+            <h3>Заказ №${order.id}</h3>
+            <p><strong>Дата:</strong> ${date}</p>
+            <p><strong>Статус:</strong> ${order.status}</p>
+            <p><strong>Сумма:</strong> ${order.amount} ${order.currency}</p>
+            <p><strong>Покупатель:</strong> ${order.customerName}</p>
+            <p><strong>Телефон:</strong> ${order.customerPhone}</p>
+            <p><strong>Email:</strong> ${order.customerEmail || '—'}</p>
+            <p><strong>Адрес:</strong> ${order.deliveryAddress}</p>
+            <ul>${itemsHtml}</ul>
+          </div>
+        `;
+      }).join('');
+    } catch (err) {
+      container.innerHTML = '<p>Ошибка загрузки заказов: ' + err.message + '</p>';
+    }
   }
 });
