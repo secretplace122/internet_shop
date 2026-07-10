@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const loginScreen = document.getElementById('login-screen');
   const adminScreen = document.getElementById('admin-screen');
 
-  // ---------- ВХОД ----------
+  // Вход
   document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('login-email').value;
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('logout-btn').addEventListener('click', () => auth.signOut());
 
-  // ---------- ВКЛАДКИ ----------
+  // Вкладки
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // ---------- МОДАЛЬНЫЕ ОКНА ----------
+  // Модальные окна
   const productModal = document.getElementById('product-modal');
   const supplyModal = document.getElementById('supply-modal');
 
@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('badge-settings').style.display = e.target.checked ? 'block' : 'none';
   });
 
-  // ---------- ТОВАРЫ ----------
+  // Добавление товара
   document.getElementById('add-product-btn').addEventListener('click', () => {
     document.getElementById('modal-title').textContent = 'Добавить товар';
     document.getElementById('product-form').reset();
@@ -227,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
     productModal.style.display = 'flex';
   }
 
-  // ---------- ЗАКАЗЫ ----------
+  // Загрузка заказов
   async function loadOrders() {
     const container = document.getElementById('orders-list');
     container.innerHTML = '<p>Загрузка заказов...</p>';
@@ -258,10 +258,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return `
           <div class="order-card">
-            <h3>Заказ №${order.id}</h3>
+            <h3>Заказ №${order.orderNumber || order.id}</h3>
             <p><strong>Дата:</strong> ${date}</p>
             <p><strong>Статус:</strong> ${order.status}</p>
             <p><strong>Сумма:</strong> ${order.amount} ${order.currency}</p>
+            <p><strong>Чек:</strong> ${order.paymentId}</p>
             <p><strong>Покупатель:</strong> ${order.customerName}</p>
             <p><strong>Телефон:</strong> ${order.customerPhone}</p>
             <p><strong>Email:</strong> ${order.customerEmail || '—'}</p>

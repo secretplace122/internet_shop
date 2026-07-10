@@ -226,6 +226,10 @@ function showCheckoutForm() {
       const controller = new AbortController();
       timeoutId = setTimeout(() => controller.abort(), 15000);
 
+      // reCAPTCHA токен
+      const recaptchaToken = await grecaptcha.execute('6Ldue0wtAAAAAI-20EzQTUORuxLArIS9R3zmHOsL', {action: 'checkout'});
+      orderData.recaptchaToken = recaptchaToken;
+
       const response = await fetch(API_URL + '?path=/create-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
