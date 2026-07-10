@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const loginScreen = document.getElementById('login-screen');
   const adminScreen = document.getElementById('admin-screen');
 
-  // Вход
+  // ---------- ВХОД ----------
   document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('login-email').value;
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('logout-btn').addEventListener('click', () => auth.signOut());
 
-  // Вкладки
+  // ---------- ВКЛАДКИ ----------
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Модальные окна
+  // ---------- МОДАЛЬНЫЕ ОКНА ----------
   const productModal = document.getElementById('product-modal');
   const supplyModal = document.getElementById('supply-modal');
 
@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('badge-settings').style.display = e.target.checked ? 'block' : 'none';
   });
 
-  // Добавление товара
+  // ---------- ТОВАРЫ ----------
   document.getElementById('add-product-btn').addEventListener('click', () => {
     document.getElementById('modal-title').textContent = 'Добавить товар';
     document.getElementById('product-form').reset();
@@ -227,10 +227,10 @@ document.addEventListener('DOMContentLoaded', () => {
     productModal.style.display = 'flex';
   }
 
-  // Загрузка заказов
+  // ---------- ЗАКАЗЫ ----------
   async function loadOrders() {
     const container = document.getElementById('orders-list');
-    container.innerHTML = '<p>Загрузка заказов...</p>';
+    container.innerHTML = '<p>Загрузка заказов…</p>';
 
     try {
       const snapshot = await db.collection('orders')
@@ -246,10 +246,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      container.innerHTML = orders.map(order => {
+      container.innerHTML = `<div class="orders-grid">` + orders.map(order => {
         const items = order.items || [];
         const itemsHtml = items.map(item =>
-          `<li>${item.title} x${item.qty} — ${item.price * item.qty} ₽</li>`
+          `<li>${item.title} x${item.qty} = ${(item.price * item.qty).toLocaleString()} ₽</li>`
         ).join('');
 
         const date = order.createdAt
@@ -260,7 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="order-card">
             <h3>Заказ №${order.orderNumber || order.id}</h3>
             <p><strong>Дата:</strong> ${date}</p>
-            <p><strong>Статус:</strong> ${order.status}</p>
+            <p><strong>Статус:</strong> <span class="order-status">${order.status}</span></p>
             <p><strong>Сумма:</strong> ${order.amount} ${order.currency}</p>
             <p><strong>Чек:</strong> ${order.paymentId}</p>
             <p><strong>Покупатель:</strong> ${order.customerName}</p>
@@ -270,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <ul>${itemsHtml}</ul>
           </div>
         `;
-      }).join('');
+      }).join('') + `</div>`;
     } catch (err) {
       container.innerHTML = '<p>Ошибка загрузки заказов: ' + err.message + '</p>';
     }
