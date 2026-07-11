@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Товар</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/product.css">
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script defer src="js/firebase-config.js"></script>
+  <script defer src="js/product.js"></script>
+</head>
+<body>
+  <header class="product-header">
+    <a href="index.html" class="back-link">← Назад</a>
+  </header>
+  <main class="product-main container">
+    <div class="product-gallery" id="product-gallery">
+      <div class="gallery-container">
+        <img id="main-image" src="" alt="" class="gallery-main-image">
+        <div class="gallery-thumbs" id="gallery-thumbs"></div>
+        <button class="gallery-arrow left" id="gallery-left">‹</button>
+        <button class="gallery-arrow right" id="gallery-right">›</button>
+      </div>
+    </div>
+    <div class="product-details">
+      <h1 id="product-title"></h1>
+      <p id="product-description"></p>
+      <div class="product-price" id="product-price"></div>
+      <div id="variant-selector" class="variant-selector"></div>
+      <div class="stock-info" id="stock-info"></div>
+      <div class="quantity-row">
+        <div class="quantity-picker">
+          <button class="qty-btn" id="qty-decrease">−</button>
+          <span class="qty-value" id="qty-value">1</span>
+          <button class="qty-btn" id="qty-increase">+</button>
+        </div>
+        <button class="btn add-to-cart-btn" id="add-to-cart-btn">В корзину</button>
+      </div>
+      <div class="product-message" id="product-message"></div>
+    </div>
+  </main>
+  <section class="reviews-section container">
+    <h2>Отзывы</h2>
+    <div class="review-form">
+      <h3>Оставить отзыв</h3>
+      <input type="text" id="review-author" placeholder="Ваше имя" required>
+      <div class="star-rating" id="star-rating">
+        <span data-rating="1">☆</span><span data-rating="2">☆</span><span data-rating="3">☆</span><span data-rating="4">☆</span><span data-rating="5">☆</span>
+      </div>
+      <textarea id="review-text" rows="3" placeholder="Ваш комментарий"></textarea>
+      <button id="submit-review" class="btn">Отправить</button>
+      <p id="review-message" class="error-message"></p>
+    </div>
+    <div id="reviews-list"></div>
+  </section>
+</body>
+</html>

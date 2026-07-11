@@ -6,28 +6,34 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
-let currentProducts = []; // глобальный список товаров для быстрого доступа
+let currentProducts = [];
 
 // ==================== ЗАГРУЗКА ТОВАРОВ ====================
 async function loadProducts() {
   const container = document.getElementById('products-container');
   container.innerHTML = '<p>Загрузка товаров…</p>';
-
   try {
     if (typeof db === 'undefined') throw new Error('Firebase не подключена');
-    const snapshot = await db.collection('products').where('stock', '>', 0).get();
+    const snapshot = await db.collection('products').get();
     const products = [];
-    snapshot.forEach(doc => products.push({ id: doc.id, ...doc.data() }));
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      // Вычисляем общий stock, если есть варианты
+      let totalStock = data.stock || 0;
+      if (data.variants && data.variants.length > 0) {
+        totalStock = 0;
+        data.variants.forEach(v => {
+          v.options.forEach(o => totalStock += o.stock);
+        });
+      }
+      products.push({ id: doc.id, ...data, totalStock });
+    });
     currentProducts = products;
     renderProducts(products);
   } catch (error) {
     console.warn('Ошибка загрузки, мок-данные:', error);
-    const mockProducts = [
-      { id: '1', title: 'Умные часы', description: 'Стильные часы.', price: 4990, stock: 10, image: 'https://via.placeholder.com/300x200?text=Watch', badge: { text: 'Хит', color: '#fff', bgColor: '#e53e3e' } },
-      { id: '2', title: 'Беспроводные наушники', description: 'Качественный звук.', price: 3490, stock: 5, image: 'https://via.placeholder.com/300x200?text=Headphones', badge: null }
-    ];
-    currentProducts = mockProducts;
-    renderProducts(mockProducts);
+    currentProducts = [];
+    renderProducts([]);
   }
 }
 
@@ -38,7 +44,9 @@ function getCartQty(productId) {
 
 function getMaxQty(productId) {
   const product = currentProducts.find(p => p.id === productId);
-  return product ? product.stock : 0;
+  if (!product) return 0;
+  // Если есть варианты, то максимальное количество определяется наличием общего stock
+  return product.totalStock;
 }
 
 function renderProducts(products) {
@@ -49,26 +57,27 @@ function renderProducts(products) {
   }
 
   container.innerHTML = products.map(p => {
-    const badgeHtml = p.badge && p.badge.text
-      ? `<span class="badge" style="background-color:${p.badge.bgColor};color:${p.badge.color}">${p.badge.text}</span>`
-      : '';
+    const badgeHtml = p.badge ? `<span class="badge" style="background:${p.badge.bgColor};color:${p.badge.color}">${p.badge.text}</span>` : '';
+    const hasVariants = p.variants && p.variants.length > 0;
     const currentQty = getCartQty(p.id);
-    const max = p.stock;
+    const max = getMaxQty(p.id);
 
     return `
       <div class="product-card" data-id="${p.id}">
-        <div style="position: relative;">
-          <img src="${p.image}" alt="${p.title}" loading="lazy">
+        <a href="product.html?id=${p.id}" style="position: relative; display: block;">
+          <img src="${p.images && p.images.length ? p.images[0] : p.image}" alt="${p.title}" loading="lazy">
           ${badgeHtml}
-        </div>
+        </a>
         <div class="product-info">
-          <h3>${p.title}</h3>
+          <a href="product.html?id=${p.id}" style="text-decoration: none; color: inherit;"><h3>${p.title}</h3></a>
           <p class="description">${p.description}</p>
           <span class="price">${p.price.toLocaleString()} ₽</span>
           <div class="cart-controls" id="controls-${p.id}">
-            ${currentQty > 0 ? `
+            ${hasVariants ? `
+              <a href="product.html?id=${p.id}" class="detail-btn">Выбрать</a>
+            ` : currentQty > 0 ? `
               <div class="quantity-picker">
-                <button class="qty-btn" data-action="decrease" data-id="${p.id}" ${currentQty <= 1 ? 'disabled' : ''}>−</button>
+                <button class="qty-btn" data-action="decrease" data-id="${p.id}" ${currentQty <= 1 ? '' : ''}>−</button>
                 <span class="qty-value">${currentQty}</span>
                 <button class="qty-btn" data-action="increase" data-id="${p.id}" ${currentQty >= max ? 'disabled' : ''}>+</button>
               </div>
@@ -82,13 +91,14 @@ function renderProducts(products) {
     `;
   }).join('');
 
-  // Обработчики кнопок
+  // Обработчики для кнопок
   container.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', handleCartAction);
   });
 }
 
 function handleCartAction(e) {
+  e.preventDefault();
   const action = e.target.dataset.action;
   const productId = e.target.dataset.id;
   const product = currentProducts.find(p => p.id === productId);
@@ -98,19 +108,24 @@ function handleCartAction(e) {
     addToCart(product, 1);
   } else if (action === 'increase') {
     const item = cart.find(i => i.id === productId);
-    if (item && item.qty < product.stock) {
+    if (item && item.qty < product.totalStock) {
       addToCart(product, 1);
     }
   } else if (action === 'decrease') {
     const item = cart.find(i => i.id === productId);
-    if (item && item.qty > 1) {
-      addToCart(product, -1);
-    } else if (item && item.qty === 1) {
-      removeFromCart(productId);
+    if (item) {
+      if (item.qty > 1) {
+        addToCart(product, -1);
+      } else {
+        removeFromCart(productId);
+      }
     }
   }
-  renderProducts(currentProducts); // обновить карточки
+  renderProducts(currentProducts);
   updateCartUI();
+  if (document.getElementById('cart-modal').style.display === 'flex') {
+    renderCart();
+  }
 }
 
 function addToCart(product, delta = 1) {
@@ -125,8 +140,9 @@ function addToCart(product, delta = 1) {
       id: product.id,
       title: product.title,
       price: product.price,
-      image: product.image,
-      qty: delta
+      image: product.images && product.images.length ? product.images[0] : product.image,
+      qty: delta,
+      variant: null // на основной странице варианты не выбираем, это будет на product.html
     });
   }
   saveCart();
@@ -188,13 +204,25 @@ function renderCart() {
   }
 
   container.innerHTML = cart.map(item => {
-    const max = getMaxQty(item.id);
+    const max = item.variant ? (() => {
+      const product = currentProducts.find(p => p.id === item.id);
+      if (product && product.variants) {
+        const variant = product.variants.find(v => v.name === item.variant.name);
+        if (variant) {
+          const option = variant.options.find(o => o.value === item.variant.value);
+          return option ? option.stock : 0;
+        }
+      }
+      return getMaxQty(item.id);
+    })() : getMaxQty(item.id);
+
     return `
       <div class="cart-item">
         <div class="cart-item-info">
           <img src="${item.image}" alt="${item.title}" class="cart-item-image">
           <div class="cart-item-details">
             <div class="cart-item-title">${item.title}</div>
+            ${item.variant ? `<div class="cart-item-variant">${item.variant.name}: ${item.variant.value}</div>` : ''}
             <div class="cart-item-price">${item.price.toLocaleString()} ₽</div>
           </div>
         </div>
@@ -210,15 +238,19 @@ function renderCart() {
     `;
   }).join('');
 
-  // обработчики изменения в корзине
+  // Обработчики
   container.querySelectorAll('[data-action="cart-increase"]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.dataset.id;
+      const item = cart.find(i => i.id === id);
       const product = currentProducts.find(p => p.id === id);
-      if (product) addToCart(product, 1);
-      renderCart();
-      renderProducts(currentProducts);
-      updateCartUI();
+      if (item && product && item.qty < getMaxQty(id)) {
+        item.qty += 1;
+        saveCart();
+        renderCart();
+        renderProducts(currentProducts);
+        updateCartUI();
+      }
     });
   });
 
@@ -226,13 +258,13 @@ function renderCart() {
     btn.addEventListener('click', () => {
       const id = btn.dataset.id;
       const item = cart.find(i => i.id === id);
-      if (item && item.qty > 1) {
-        addToCart(currentProducts.find(p => p.id === id), -1);
-        renderCart();
-        renderProducts(currentProducts);
-        updateCartUI();
-      } else {
-        removeFromCart(id);
+      if (item) {
+        if (item.qty > 1) {
+          item.qty -= 1;
+          saveCart();
+        } else {
+          removeFromCart(id);
+        }
         renderCart();
         renderProducts(currentProducts);
         updateCartUI();
@@ -253,7 +285,7 @@ function renderCart() {
   totalEl.textContent = total.toLocaleString();
 }
 
-// ==================== ОФОРМЛЕНИЕ ЗАКАЗА ====================
+// ==================== ОФОРМЛЕНИЕ ====================
 function showCheckoutForm() {
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   const overlay = document.createElement('div');
@@ -307,7 +339,12 @@ function showCheckoutForm() {
     errorEl.textContent = '';
 
     const orderData = {
-      items: cart.map(item => ({ id: item.id, qty: item.qty })),
+      items: cart.map(item => ({
+        id: item.id,
+        qty: item.qty,
+        variantName: item.variant ? item.variant.name : null,
+        variantValue: item.variant ? item.variant.value : null
+      })),
       customerName: document.getElementById('customer-name').value.trim(),
       customerPhone: document.getElementById('customer-phone').value.trim(),
       customerEmail: document.getElementById('customer-email').value.trim(),
