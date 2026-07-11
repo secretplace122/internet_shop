@@ -74,7 +74,7 @@ function renderProducts(products, reviewsData) {
 
     let variantsHtml = '';
     let variantStockHtml = '';
-    if (p.variants && p.variants.length > 0) {
+    if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
       const firstVariant = p.variants[0];
       const defaultOption = firstVariant.options[0];
       variantsHtml = `
@@ -93,7 +93,7 @@ function renderProducts(products, reviewsData) {
 
     let selectedVariantValue = null;
     let selectedVariantStock = p.stock || 0;
-    if (p.variants && p.variants.length > 0) {
+    if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
       const firstOpt = p.variants[0].options[0];
       selectedVariantValue = firstOpt.value;
       selectedVariantStock = firstOpt.stock;
@@ -174,7 +174,7 @@ function getSelectedVariant(productId) {
   if (!card) return null;
   const activePill = card.querySelector('.variant-pill.active');
   if (!activePill) return null;
-  const variantName = card.querySelector('.variant-row').dataset.variantName;
+  const variantName = card.querySelector('.variant-row')?.dataset.variantName;
   return { name: variantName, value: activePill.dataset.value, stock: parseInt(activePill.dataset.stock) };
 }
 
@@ -188,10 +188,10 @@ function updateCartControlsForCard(productId) {
   let max = product.stock || 0;
   let variant = null;
 
-  if (product.variants && product.variants.length > 0) {
+  if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
     const activePill = card.querySelector('.variant-pill.active');
     if (activePill) {
-      const variantName = card.querySelector('.variant-row').dataset.variantName;
+      const variantName = card.querySelector('.variant-row')?.dataset.variantName;
       const value = activePill.dataset.value;
       max = parseInt(activePill.dataset.stock) || 0;
       variant = { name: variantName, value, stock: max };
@@ -326,9 +326,16 @@ function renderCart() {
 
   container.innerHTML = cart.map(item => {
     const product = currentProducts.find(p => p.id === item.id);
-    const max = item.variant
-      ? (product?.variants?.find(v => v.name === item.variant.name)?.options.find(o => o.value === item.variant.value)?.stock || 0)
-      : (product?.stock || 0);
+    let max = product ? (product.stock || 0) : 0;
+
+    if (item.variant && product && Array.isArray(product.variants)) {
+      const variant = product.variants.find(v => v.name === item.variant.name);
+      if (variant && Array.isArray(variant.options)) {
+        const option = variant.options.find(o => o.value === item.variant.value);
+        if (option) max = option.stock;
+      }
+    }
+
     return `
       <div class="cart-item">
         <div class="cart-item-info">
@@ -364,13 +371,18 @@ function handleCartItemAction(e) {
   const productId = e.target.dataset.id;
   const variantValue = e.target.dataset.variantValue;
   const product = currentProducts.find(p => p.id === productId);
-  const variant = variantValue ? { name: product?.variants?.[0]?.name, value: variantValue } : null;
+  const variant = variantValue && product ? { name: product?.variants?.[0]?.name, value: variantValue } : null;
   const cartItem = cart.find(item => item.id === productId && item.variant?.value === variant?.value);
 
   if (action === 'cart-increase' && cartItem && product) {
-    const max = variant
-      ? product.variants[0].options.find(o => o.value === variantValue)?.stock || 0
-      : product.stock || 0;
+    let max = product.stock || 0;
+    if (variant && Array.isArray(product.variants)) {
+      const foundVariant = product.variants.find(v => v.name === variant.name);
+      if (foundVariant && Array.isArray(foundVariant.options)) {
+        const option = foundVariant.options.find(o => o.value === variant.value);
+        if (option) max = option.stock;
+      }
+    }
     if (cartItem.qty < max) {
       cartItem.qty += 1;
       saveCart();
