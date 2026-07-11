@@ -22,7 +22,6 @@ body {
   min-height: 100vh;
 }
 
-/* Экран входа */
 .login-box {
   max-width: 400px;
   margin: 100px auto;
@@ -101,7 +100,6 @@ body {
 .toolbar { margin-bottom: 20px; }
 .toolbar .btn { width: auto; padding: 10px 24px; }
 
-/* Таблица */
 .products-list table {
   width: 100%;
   background: var(--white);
@@ -139,7 +137,6 @@ body {
 .btn-sm.supply { color: var(--success); border-color: var(--success); }
 .btn-sm.supply:hover { background: #f0fff4; }
 
-/* Модалки */
 .modal {
   display: none;
   position: fixed;
@@ -180,13 +177,11 @@ body {
 .checkbox-label input[type="checkbox"] { width: 18px; height: 18px; }
 #badge-settings { background: var(--light-bg); padding: 15px; border-radius: 8px; margin-top: 10px; }
 
-/* Заказы - карточки */
 .orders-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
   gap: 20px;
 }
-
 .order-card {
   background: var(--white);
   border-radius: var(--radius);
@@ -195,16 +190,9 @@ body {
   transition: var(--shadow) 0.2s;
 }
 .order-card:hover { box-shadow: var(--shadow); }
-.order-card h3 {
-  font-size: 1.2rem;
-  margin-bottom: 14px;
-  color: var(--primary-hover);
-}
-.order-card p {
-  margin-bottom: 6px;
-  font-size: 0.9rem;
-}
-.order-card .order-status {
+.order-card h3 { font-size: 1.2rem; margin-bottom: 14px; color: var(--primary-hover); }
+.order-card p { margin-bottom: 6px; font-size: 0.9rem; }
+.order-status {
   display: inline-block;
   padding: 3px 10px;
   border-radius: 12px;

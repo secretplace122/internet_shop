@@ -13,7 +13,6 @@
   <script defer src="js/admin.js"></script>
 </head>
 <body>
-  <!-- Экран входа -->
   <div id="login-screen" class="screen">
     <div class="login-box">
       <h1>Вход в админ-панель</h1>
@@ -26,34 +25,23 @@
     </div>
   </div>
 
-  <!-- Панель управления -->
   <div id="admin-screen" class="screen" style="display: none;">
     <header class="admin-header">
       <h1>Админ-панель</h1>
       <button id="logout-btn" class="btn-outline">Выйти</button>
     </header>
-
     <div class="admin-tabs">
       <button class="tab-btn active" data-tab="products">Товары</button>
       <button class="tab-btn" data-tab="orders">Заказы</button>
     </div>
-
-    <!-- Вкладка Товары -->
     <div id="tab-products" class="tab-content active">
-      <div class="toolbar">
-        <button id="add-product-btn" class="btn">+ Добавить товар</button>
-      </div>
+      <div class="toolbar"><button id="add-product-btn" class="btn">+ Добавить товар</button></div>
       <div id="products-list" class="products-list"></div>
     </div>
-
-    <!-- Вкладка Заказы -->
     <div id="tab-orders" class="tab-content">
-      <div id="orders-list">
-        <p>Заказы появятся после первых оплат.</p>
-      </div>
+      <div id="orders-list"><p>Заказы появятся после первых оплат.</p></div>
     </div>
 
-    <!-- Модальное окно товара -->
     <div id="product-modal" class="modal">
       <div class="modal-content">
         <span class="close">&times;</span>
@@ -68,16 +56,20 @@
           <input type="number" id="product-price" required>
           <label>Остаток (шт) – если без вариантов</label>
           <input type="number" id="product-stock" value="0">
-          <label>Главное изображение (URL)</label>
+          <label>Главное изображение</label>
           <input type="url" id="product-image" placeholder="https://..." required>
-          <label>Дополнительные изображения (через запятую)</label>
-          <input type="text" id="product-images" placeholder="url1, url2, url3">
-          <label>Варианты (JSON)</label>
-          <textarea id="product-variants" rows="4" placeholder='[{"name":"Размер","options":[{"value":"XS","stock":3},{"value":"XL","stock":2}]}]'></textarea>
+          <label>Доп. изображения</label>
+          <div id="additional-images-container"></div>
+          <button type="button" id="add-image-btn" class="btn-sm" style="width:auto; margin-top:5px;">+ Изображение</button>
+
+          <label style="margin-top:15px;">Варианты</label>
+          <div id="variants-container"></div>
+          <button type="button" id="add-variant-btn" class="btn-sm" style="width:auto; margin-top:5px;">+ Вариант</button>
+
           <label class="checkbox-label">
             <input type="checkbox" id="product-has-badge"> Показывать бирку
           </label>
-          <div id="badge-settings" style="display: none;">
+          <div id="badge-settings" style="display:none;">
             <label>Текст бирки</label>
             <input type="text" id="badge-text" placeholder="Хит, Скидка...">
             <label>Цвет фона</label>
@@ -85,12 +77,11 @@
             <label>Цвет текста</label>
             <input type="color" id="badge-color" value="#ffffff">
           </div>
-          <button type="submit" class="btn">Сохранить</button>
+          <button type="submit" class="btn" style="margin-top:15px;">Сохранить</button>
         </form>
       </div>
     </div>
 
-    <!-- Модальное окно поставки (без изменений) -->
     <div id="supply-modal" class="modal">
       <div class="modal-content modal-small">
         <span class="close">&times;</span>

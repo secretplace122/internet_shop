@@ -4,17 +4,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const loginScreen = document.getElementById('login-screen');
   const adminScreen = document.getElementById('admin-screen');
 
-  // Вход
   document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     const errorEl = document.getElementById('login-error');
-    try {
-      await auth.signInWithEmailAndPassword(email, password);
-    } catch (err) {
-      errorEl.textContent = 'Ошибка входа: ' + err.message;
-    }
+    try { await auth.signInWithEmailAndPassword(email, password); } catch (err) { errorEl.textContent = 'Ошибка входа: ' + err.message; }
   });
 
   auth.onAuthStateChanged((user) => {
@@ -31,7 +26,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('logout-btn').addEventListener('click', () => auth.signOut());
 
-  // Вкладки
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -44,54 +38,88 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const productModal = document.getElementById('product-modal');
   const supplyModal = document.getElementById('supply-modal');
-  document.querySelectorAll('.close').forEach(closeBtn => {
-    closeBtn.addEventListener('click', () => {
-      productModal.style.display = 'none';
-      supplyModal.style.display = 'none';
-    });
+  document.querySelectorAll('.close').forEach(c => { c.addEventListener('click', () => { productModal.style.display = 'none'; supplyModal.style.display = 'none'; }); });
+  window.addEventListener('click', (e) => { if (e.target === productModal) productModal.style.display = 'none'; if (e.target === supplyModal) supplyModal.style.display = 'none'; });
+
+  document.getElementById('add-image-btn').addEventListener('click', () => {
+    const container = document.getElementById('additional-images-container');
+    const div = document.createElement('div');
+    div.className = 'image-input-row';
+    div.innerHTML = `<input type="url" class="product-image-extra" placeholder="URL изображения" style="width:80%; margin-right:5px;"><button type="button" class="btn-sm danger remove-image-btn">🗑</button>`;
+    container.appendChild(div);
+    div.querySelector('.remove-image-btn').addEventListener('click', () => div.remove());
   });
-  window.addEventListener('click', (e) => {
-    if (e.target === productModal) productModal.style.display = 'none';
-    if (e.target === supplyModal) supplyModal.style.display = 'none';
+
+  document.getElementById('add-variant-btn').addEventListener('click', () => {
+    const container = document.getElementById('variants-container');
+    const variantDiv = document.createElement('div');
+    variantDiv.className = 'variant-block';
+    variantDiv.innerHTML = `
+      <input type="text" class="variant-name" placeholder="Название варианта" style="width:70%;">
+      <button type="button" class="btn-sm danger remove-variant-btn">Удалить</button>
+      <div class="variant-options"></div>
+      <button type="button" class="btn-sm add-option-btn">+ Значение</button>
+    `;
+    container.appendChild(variantDiv);
+    variantDiv.querySelector('.remove-variant-btn').addEventListener('click', () => variantDiv.remove());
+    variantDiv.querySelector('.add-option-btn').addEventListener('click', () => addOption(variantDiv.querySelector('.variant-options')));
+    addOption(variantDiv.querySelector('.variant-options'));
   });
+
+  function addOption(optionsContainer) {
+    const row = document.createElement('div');
+    row.className = 'option-row';
+    row.innerHTML = `<input type="text" class="option-value" placeholder="Значение" style="width:40%; margin-right:5px;"><input type="number" class="option-stock" placeholder="Остаток" value="0" style="width:40%;"><button type="button" class="btn-sm danger remove-option-btn">🗑</button>`;
+    optionsContainer.appendChild(row);
+    row.querySelector('.remove-option-btn').addEventListener('click', () => row.remove());
+  }
 
   document.getElementById('product-has-badge').addEventListener('change', (e) => {
     document.getElementById('badge-settings').style.display = e.target.checked ? 'block' : 'none';
   });
 
-  // Добавить товар
   document.getElementById('add-product-btn').addEventListener('click', () => {
     document.getElementById('modal-title').textContent = 'Добавить товар';
     document.getElementById('product-form').reset();
     document.getElementById('product-id').value = '';
+    document.getElementById('additional-images-container').innerHTML = '';
+    document.getElementById('variants-container').innerHTML = '';
     document.getElementById('badge-settings').style.display = 'none';
     productModal.style.display = 'flex';
   });
 
-  // Сохранение товара
   document.getElementById('product-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('product-id').value;
     const hasBadge = document.getElementById('product-has-badge').checked;
-    const variantsText = document.getElementById('product-variants').value.trim();
-    let variants = null;
-    if (variantsText) {
-      try {
-        variants = JSON.parse(variantsText);
-      } catch (e) {
-        alert('Неверный JSON вариантов');
-        return;
-      }
-    }
+
+    const imageInputs = document.querySelectorAll('.product-image-extra');
+    const images = Array.from(imageInputs).map(inp => inp.value.trim()).filter(v => v);
+    const mainImage = document.getElementById('product-image').value.trim();
+    if (!mainImage) { alert('Укажите главное изображение'); return; }
+
+    const variantBlocks = document.querySelectorAll('.variant-block');
+    const variants = [];
+    variantBlocks.forEach(block => {
+      const nameInput = block.querySelector('.variant-name');
+      if (!nameInput.value.trim()) return;
+      const options = [];
+      block.querySelectorAll('.option-row').forEach(row => {
+        const value = row.querySelector('.option-value').value.trim();
+        const stock = parseInt(row.querySelector('.option-stock').value) || 0;
+        if (value) options.push({ value, stock });
+      });
+      if (options.length) variants.push({ name: nameInput.value.trim(), options });
+    });
 
     const productData = {
       title: document.getElementById('product-title').value,
       description: document.getElementById('product-description').value,
       price: parseInt(document.getElementById('product-price').value),
-      stock: variants ? 0 : parseInt(document.getElementById('product-stock').value),
-      image: document.getElementById('product-image').value,
-      images: document.getElementById('product-images').value.split(',').map(s => s.trim()).filter(Boolean),
-      variants: variants,
+      stock: variants.length ? 0 : parseInt(document.getElementById('product-stock').value),
+      image: mainImage,
+      images: images.length ? images : [mainImage],
+      variants: variants.length ? variants : null,
       badge: null
     };
 
@@ -116,7 +144,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Поставка
   document.getElementById('supply-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('supply-product-id').value;
@@ -131,7 +158,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Загрузка товаров
   async function loadProducts() {
     const container = document.getElementById('products-list');
     container.innerHTML = '<p>Загрузка...</p>';
@@ -204,8 +230,42 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('product-price').value = product.price;
     document.getElementById('product-stock').value = product.stock || 0;
     document.getElementById('product-image').value = product.image;
-    document.getElementById('product-images').value = product.images ? product.images.join(', ') : '';
-    document.getElementById('product-variants').value = product.variants ? JSON.stringify(product.variants) : '';
+    document.getElementById('additional-images-container').innerHTML = '';
+    document.getElementById('variants-container').innerHTML = '';
+
+    if (product.images && product.images.length) {
+      product.images.forEach(url => {
+        const div = document.createElement('div');
+        div.className = 'image-input-row';
+        div.innerHTML = `<input type="url" class="product-image-extra" value="${url}" style="width:80%;"><button type="button" class="btn-sm danger remove-image-btn">🗑</button>`;
+        document.getElementById('additional-images-container').appendChild(div);
+        div.querySelector('.remove-image-btn').addEventListener('click', () => div.remove());
+      });
+    }
+
+    if (product.variants && product.variants.length) {
+      product.variants.forEach(variant => {
+        const variantDiv = document.createElement('div');
+        variantDiv.className = 'variant-block';
+        variantDiv.innerHTML = `
+          <input type="text" class="variant-name" value="${variant.name}" style="width:70%;">
+          <button type="button" class="btn-sm danger remove-variant-btn">Удалить</button>
+          <div class="variant-options"></div>
+          <button type="button" class="btn-sm add-option-btn">+ Значение</button>
+        `;
+        document.getElementById('variants-container').appendChild(variantDiv);
+        variantDiv.querySelector('.remove-variant-btn').addEventListener('click', () => variantDiv.remove());
+        variantDiv.querySelector('.add-option-btn').addEventListener('click', () => addOption(variantDiv.querySelector('.variant-options')));
+        variant.options.forEach(opt => {
+          const row = document.createElement('div');
+          row.className = 'option-row';
+          row.innerHTML = `<input type="text" class="option-value" value="${opt.value}" style="width:40%;"><input type="number" class="option-stock" value="${opt.stock}" style="width:40%;"><button type="button" class="btn-sm danger remove-option-btn">🗑</button>`;
+          variantDiv.querySelector('.variant-options').appendChild(row);
+          row.querySelector('.remove-option-btn').addEventListener('click', () => row.remove());
+        });
+      });
+    }
+
     if (product.badge) {
       document.getElementById('product-has-badge').checked = true;
       document.getElementById('badge-settings').style.display = 'block';
@@ -219,7 +279,6 @@ document.addEventListener('DOMContentLoaded', () => {
     productModal.style.display = 'flex';
   }
 
-  // Заказы
   async function loadOrders() {
     const container = document.getElementById('orders-list');
     container.innerHTML = '<p>Загрузка заказов…</p>';

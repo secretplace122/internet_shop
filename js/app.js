@@ -8,7 +8,6 @@ document.addEventListener('DOMContentLoaded', () => {
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
 let currentProducts = [];
 
-// ==================== ЗАГРУЗКА ТОВАРОВ ====================
 async function loadProducts() {
   const container = document.getElementById('products-container');
   container.innerHTML = '<p>Загрузка товаров…</p>';
@@ -18,38 +17,43 @@ async function loadProducts() {
     const products = [];
     snapshot.forEach(doc => {
       const data = doc.data();
-      // Вычисляем общий stock, если есть варианты
-      let totalStock = data.stock || 0;
-      if (data.variants && data.variants.length > 0) {
-        totalStock = 0;
-        data.variants.forEach(v => {
-          v.options.forEach(o => totalStock += o.stock);
-        });
-      }
-      products.push({ id: doc.id, ...data, totalStock });
+      products.push({ id: doc.id, ...data });
     });
     currentProducts = products;
-    renderProducts(products);
+    const productIds = products.map(p => p.id);
+    const reviewsData = await fetchReviewsData(productIds);
+    renderProducts(products, reviewsData);
   } catch (error) {
-    console.warn('Ошибка загрузки, мок-данные:', error);
-    currentProducts = [];
-    renderProducts([]);
+    console.warn('Ошибка загрузки:', error);
+    renderProducts([], {});
   }
 }
 
-function getCartQty(productId) {
-  const item = cart.find(i => i.id === productId);
-  return item ? item.qty : 0;
+async function fetchReviewsData(productIds) {
+  if (!productIds.length) return {};
+  try {
+    const snapshot = await db.collection('reviews')
+      .where('productId', 'in', productIds)
+      .where('approved', '==', true)
+      .get();
+    const data = {};
+    snapshot.forEach(doc => {
+      const r = doc.data();
+      if (!data[r.productId]) data[r.productId] = { total: 0, count: 0 };
+      data[r.productId].total += r.rating;
+      data[r.productId].count += 1;
+    });
+    const result = {};
+    for (const [id, val] of Object.entries(data)) {
+      result[id] = { avg: (val.total / val.count).toFixed(1), count: val.count };
+    }
+    return result;
+  } catch (e) {
+    return {};
+  }
 }
 
-function getMaxQty(productId) {
-  const product = currentProducts.find(p => p.id === productId);
-  if (!product) return 0;
-  // Если есть варианты, то максимальное количество определяется наличием общего stock
-  return product.totalStock;
-}
-
-function renderProducts(products) {
+function renderProducts(products, reviewsData) {
   const container = document.getElementById('products-container');
   if (products.length === 0) {
     container.innerHTML = '<p>Товаров пока нет.</p>';
@@ -58,107 +62,181 @@ function renderProducts(products) {
 
   container.innerHTML = products.map(p => {
     const badgeHtml = p.badge ? `<span class="badge" style="background:${p.badge.bgColor};color:${p.badge.color}">${p.badge.text}</span>` : '';
-    const hasVariants = p.variants && p.variants.length > 0;
-    const currentQty = getCartQty(p.id);
-    const max = getMaxQty(p.id);
+    const images = (p.images && p.images.length) ? p.images : [p.image];
+    const galleryHtml = `
+      <div class="card-gallery">
+        <div class="card-gallery-scroll">
+          ${images.map(url => `<img src="${url}" alt="${p.title}" loading="lazy">`).join('')}
+        </div>
+        ${badgeHtml}
+      </div>`;
+
+    const rev = reviewsData[p.id] || { avg: '0', count: 0 };
+    const starsHtml = '★'.repeat(Math.round(rev.avg)) + '☆'.repeat(5 - Math.round(rev.avg));
+
+    let variantsHtml = '';
+    if (p.variants && p.variants.length > 0) {
+      const firstVariant = p.variants[0];
+      variantsHtml = `
+        <div class="variant-row" data-variant-name="${firstVariant.name}">
+          ${firstVariant.options.map((opt, idx) => `
+            <span class="variant-pill${idx === 0 ? ' active' : ''}" data-value="${opt.value}" data-stock="${opt.stock}">${opt.value}</span>
+          `).join('')}
+        </div>`;
+    }
+
+    let selectedVariantValue = null;
+    let selectedVariantStock = p.stock || 0;
+    if (p.variants && p.variants.length > 0) {
+      const firstOpt = p.variants[0].options[0];
+      selectedVariantValue = firstOpt.value;
+      selectedVariantStock = firstOpt.stock;
+    }
+
+    const cartItem = cart.find(item => item.id === p.id && item.variant?.value === selectedVariantValue);
+    const currentQty = cartItem ? cartItem.qty : 0;
+    const maxQty = selectedVariantStock;
+
+    const cartControlsHtml = currentQty > 0 ? `
+      <div class="quantity-picker">
+        <button class="qty-btn" data-action="decrease" data-id="${p.id}">−</button>
+        <span class="qty-value">${currentQty}</span>
+        <button class="qty-btn" data-action="increase" data-id="${p.id}" ${currentQty >= maxQty ? 'disabled' : ''}>+</button>
+      </div>
+      <button class="go-to-cart" data-action="go-cart">🛒</button>
+    ` : `
+      <button class="add-to-cart" data-id="${p.id}" data-action="add">В корзину</button>
+    `;
 
     return `
       <div class="product-card" data-id="${p.id}">
-        <a href="product.html?id=${p.id}" style="position: relative; display: block;">
-          <img src="${p.images && p.images.length ? p.images[0] : p.image}" alt="${p.title}" loading="lazy">
-          ${badgeHtml}
-        </a>
+        ${galleryHtml}
         <div class="product-info">
-          <a href="product.html?id=${p.id}" style="text-decoration: none; color: inherit;"><h3>${p.title}</h3></a>
+          <h3>${p.title}</h3>
           <p class="description">${p.description}</p>
-          <span class="price">${p.price.toLocaleString()} ₽</span>
+          <div class="rating-row">
+            <span class="stars">${starsHtml}</span>
+            <span class="review-count">${rev.count} отзывов</span>
+          </div>
+          ${variantsHtml}
+          <div class="price">${p.price.toLocaleString()} ₽</div>
           <div class="cart-controls" id="controls-${p.id}">
-            ${hasVariants ? `
-              <a href="product.html?id=${p.id}" class="detail-btn">Выбрать</a>
-            ` : currentQty > 0 ? `
-              <div class="quantity-picker">
-                <button class="qty-btn" data-action="decrease" data-id="${p.id}" ${currentQty <= 1 ? '' : ''}>−</button>
-                <span class="qty-value">${currentQty}</span>
-                <button class="qty-btn" data-action="increase" data-id="${p.id}" ${currentQty >= max ? 'disabled' : ''}>+</button>
-              </div>
-              <span class="in-cart-indicator">В корзине</span>
-            ` : `
-              <button class="add-to-cart" data-id="${p.id}" data-action="add">В корзину</button>
-            `}
+            ${cartControlsHtml}
           </div>
         </div>
       </div>
     `;
   }).join('');
 
-  // Обработчики для кнопок
+  container.querySelectorAll('.variant-pill').forEach(pill => {
+    pill.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const row = pill.parentElement;
+      row.querySelectorAll('.variant-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      updateCartControlsForCard(pill.closest('.product-card').dataset.id);
+    });
+  });
+
   container.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', handleCartAction);
   });
 }
 
+function getSelectedVariant(productId) {
+  const card = document.querySelector(`.product-card[data-id="${productId}"]`);
+  if (!card) return null;
+  const activePill = card.querySelector('.variant-pill.active');
+  if (!activePill) return null;
+  const variantName = card.querySelector('.variant-row').dataset.variantName;
+  return { name: variantName, value: activePill.dataset.value, stock: parseInt(activePill.dataset.stock) };
+}
+
+function updateCartControlsForCard(productId) {
+  const card = document.querySelector(`.product-card[data-id="${productId}"]`);
+  if (!card) return;
+  const controls = card.querySelector('.cart-controls');
+  const product = currentProducts.find(p => p.id === productId);
+  if (!product) return;
+  const variant = getSelectedVariant(productId);
+  const max = variant ? variant.stock : (product.stock || 0);
+  const cartItem = cart.find(item => item.id === productId && item.variant?.value === variant?.value);
+  const currentQty = cartItem ? cartItem.qty : 0;
+
+  controls.innerHTML = currentQty > 0 ? `
+    <div class="quantity-picker">
+      <button class="qty-btn" data-action="decrease" data-id="${productId}">−</button>
+      <span class="qty-value">${currentQty}</span>
+      <button class="qty-btn" data-action="increase" data-id="${productId}" ${currentQty >= max ? 'disabled' : ''}>+</button>
+    </div>
+    <button class="go-to-cart" data-action="go-cart">🛒</button>
+  ` : `
+    <button class="add-to-cart" data-id="${productId}" data-action="add">В корзину</button>
+  `;
+  controls.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', handleCartAction));
+}
+
 function handleCartAction(e) {
   e.preventDefault();
   const action = e.target.dataset.action;
-  const productId = e.target.dataset.id;
+  const productId = e.target.dataset.id || e.target.closest('.product-card').dataset.id;
   const product = currentProducts.find(p => p.id === productId);
   if (!product) return;
 
+  const variant = getSelectedVariant(productId);
+
   if (action === 'add') {
-    addToCart(product, 1);
+    addToCart(product, 1, variant);
   } else if (action === 'increase') {
-    const item = cart.find(i => i.id === productId);
-    if (item && item.qty < product.totalStock) {
-      addToCart(product, 1);
+    const cartItem = cart.find(item => item.id === productId && item.variant?.value === variant?.value);
+    if (cartItem && cartItem.qty < (variant ? variant.stock : product.stock)) {
+      addToCart(product, 1, variant);
     }
   } else if (action === 'decrease') {
-    const item = cart.find(i => i.id === productId);
-    if (item) {
-      if (item.qty > 1) {
-        addToCart(product, -1);
+    const cartItem = cart.find(item => item.id === productId && item.variant?.value === variant?.value);
+    if (cartItem) {
+      if (cartItem.qty > 1) {
+        addToCart(product, -1, variant);
       } else {
-        removeFromCart(productId);
+        removeFromCart(productId, variant);
       }
     }
+  } else if (action === 'go-cart') {
+    document.getElementById('cart-modal').style.display = 'flex';
+    renderCart();
   }
-  renderProducts(currentProducts);
   updateCartUI();
+  updateCartControlsForCard(productId);
   if (document.getElementById('cart-modal').style.display === 'flex') {
     renderCart();
   }
 }
 
-function addToCart(product, delta = 1) {
-  const existing = cart.find(item => item.id === product.id);
+function addToCart(product, delta = 1, variant = null) {
+  const existing = cart.find(item => item.id === product.id && item.variant?.value === variant?.value);
   if (existing) {
     existing.qty += delta;
     if (existing.qty <= 0) {
-      cart = cart.filter(item => item.id !== product.id);
+      cart = cart.filter(item => !(item.id === product.id && item.variant?.value === variant?.value));
     }
   } else if (delta > 0) {
     cart.push({
       id: product.id,
       title: product.title,
       price: product.price,
-      image: product.images && product.images.length ? product.images[0] : product.image,
+      image: product.images?.[0] || product.image,
       qty: delta,
-      variant: null // на основной странице варианты не выбираем, это будет на product.html
+      variant: variant
     });
   }
   saveCart();
 }
 
-function removeFromCart(id) {
-  cart = cart.filter(item => item.id !== id);
+function removeFromCart(productId, variant = null) {
+  cart = cart.filter(item => !(item.id === productId && item.variant?.value === variant?.value));
   saveCart();
-  renderProducts(currentProducts);
-  updateCartUI();
-  if (document.getElementById('cart-modal').style.display === 'flex') {
-    renderCart();
-  }
 }
 
-// ==================== КОРЗИНА ====================
 function setupCart() {
   updateCartUI();
   const modal = document.getElementById('cart-modal');
@@ -182,14 +260,11 @@ function setupCart() {
   });
 }
 
-function saveCart() {
-  localStorage.setItem('cart', JSON.stringify(cart));
-}
+function saveCart() { localStorage.setItem('cart', JSON.stringify(cart)); }
 
 function updateCartUI() {
   const count = cart.reduce((sum, item) => sum + item.qty, 0);
-  const el = document.getElementById('cart-count');
-  if (el) el.textContent = count;
+  document.getElementById('cart-count').textContent = count;
 }
 
 function renderCart() {
@@ -204,18 +279,10 @@ function renderCart() {
   }
 
   container.innerHTML = cart.map(item => {
-    const max = item.variant ? (() => {
-      const product = currentProducts.find(p => p.id === item.id);
-      if (product && product.variants) {
-        const variant = product.variants.find(v => v.name === item.variant.name);
-        if (variant) {
-          const option = variant.options.find(o => o.value === item.variant.value);
-          return option ? option.stock : 0;
-        }
-      }
-      return getMaxQty(item.id);
-    })() : getMaxQty(item.id);
-
+    const product = currentProducts.find(p => p.id === item.id);
+    const max = item.variant
+      ? (product?.variants?.find(v => v.name === item.variant.name)?.options.find(o => o.value === item.variant.value)?.stock || 0)
+      : (product?.stock || 0);
     return `
       <div class="cart-item">
         <div class="cart-item-info">
@@ -228,64 +295,55 @@ function renderCart() {
         </div>
         <div class="cart-item-actions">
           <div class="cart-item-qty">
-            <button class="cart-qty-btn" data-id="${item.id}" data-action="cart-decrease">−</button>
+            <button class="cart-qty-btn" data-action="cart-decrease" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">−</button>
             <span>${item.qty}</span>
-            <button class="cart-qty-btn" data-id="${item.id}" data-action="cart-increase" ${item.qty >= max ? 'disabled' : ''}>+</button>
+            <button class="cart-qty-btn" data-action="cart-increase" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}" ${item.qty >= max ? 'disabled' : ''}>+</button>
           </div>
-          <button class="cart-remove-btn" data-id="${item.id}" data-action="cart-remove">🗑</button>
+          <button class="cart-remove-btn" data-action="cart-remove" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">🗑</button>
         </div>
       </div>
     `;
   }).join('');
 
-  // Обработчики
-  container.querySelectorAll('[data-action="cart-increase"]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      const item = cart.find(i => i.id === id);
-      const product = currentProducts.find(p => p.id === id);
-      if (item && product && item.qty < getMaxQty(id)) {
-        item.qty += 1;
-        saveCart();
-        renderCart();
-        renderProducts(currentProducts);
-        updateCartUI();
-      }
-    });
-  });
-
-  container.querySelectorAll('[data-action="cart-decrease"]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      const item = cart.find(i => i.id === id);
-      if (item) {
-        if (item.qty > 1) {
-          item.qty -= 1;
-          saveCart();
-        } else {
-          removeFromCart(id);
-        }
-        renderCart();
-        renderProducts(currentProducts);
-        updateCartUI();
-      }
-    });
-  });
-
-  container.querySelectorAll('[data-action="cart-remove"]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      removeFromCart(btn.dataset.id);
-      renderCart();
-      renderProducts(currentProducts);
-      updateCartUI();
-    });
+  container.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', handleCartItemAction);
   });
 
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   totalEl.textContent = total.toLocaleString();
 }
 
-// ==================== ОФОРМЛЕНИЕ ====================
+function handleCartItemAction(e) {
+  const action = e.target.dataset.action;
+  const productId = e.target.dataset.id;
+  const variantValue = e.target.dataset.variantValue;
+  const product = currentProducts.find(p => p.id === productId);
+  const variant = variantValue ? { name: product?.variants?.[0]?.name, value: variantValue } : null;
+  const cartItem = cart.find(item => item.id === productId && item.variant?.value === variant?.value);
+
+  if (action === 'cart-increase' && cartItem && product) {
+    const max = variant
+      ? product.variants[0].options.find(o => o.value === variantValue)?.stock || 0
+      : product.stock || 0;
+    if (cartItem.qty < max) {
+      cartItem.qty += 1;
+      saveCart();
+    }
+  } else if (action === 'cart-decrease' && cartItem) {
+    if (cartItem.qty > 1) {
+      cartItem.qty -= 1;
+      saveCart();
+    } else {
+      removeFromCart(productId, variant);
+    }
+  } else if (action === 'cart-remove') {
+    removeFromCart(productId, variant);
+  }
+  renderCart();
+  updateCartUI();
+  loadProducts(); 
+}
+
 function showCheckoutForm() {
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   const overlay = document.createElement('div');
