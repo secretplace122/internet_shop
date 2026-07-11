@@ -124,14 +124,16 @@ function setupVariantSelector() {
   const variant = product.variants[0];
   const options = variant.options;
 
-  container.innerHTML = options.map((opt, idx) =>
-    `<span class="variant-pill ${idx === 0 ? ' active' : ''} ${opt.stock === 0 ? ' disabled' : ''}"
+  const firstAvailable = options.find(o => o.stock > 0);
+  const activeValue = firstAvailable ? firstAvailable.value : (options.length ? options[0].value : null);
+
+  container.innerHTML = options.map(opt =>
+    `<span class="variant-pill ${opt.value === activeValue ? ' active' : ''} ${opt.stock === 0 ? ' disabled' : ''}"
            data-value="${opt.value}" data-stock="${opt.stock}">
        ${opt.value}
      </span>`
   ).join('');
 
-  const firstAvailable = options.find(o => o.stock > 0);
   selectedVariant = firstAvailable ? { name: variant.name, value: firstAvailable.value } : null;
 
   if (!selectedVariant) {

@@ -74,9 +74,13 @@ function renderProducts(products, reviewsData) {
 
     let variantsHtml = '';
     let variantStockHtml = '';
+    let activeVariantValue = null;
+    let activeVariantStock = p.stock || 0;
+
     if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
       const firstVariant = p.variants[0];
-      const defaultOption = firstVariant.options[0];
+      const available = firstVariant.options.find(o => o.stock > 0);
+      const defaultOption = available || firstVariant.options[0];
       variantsHtml = `
         <div class="variant-row" data-variant-name="${firstVariant.name}">
           ${firstVariant.options.map(opt => `
@@ -87,21 +91,15 @@ function renderProducts(products, reviewsData) {
           `).join('')}
         </div>`;
       variantStockHtml = `<span class="variant-stock" id="stock-${p.id}">Осталось: ${defaultOption.stock} шт.</span>`;
+      activeVariantValue = defaultOption.value;
+      activeVariantStock = defaultOption.stock;
     } else {
       variantStockHtml = `<span class="stock-badge">Осталось: ${p.stock || 0} шт.</span>`;
     }
 
-    let selectedVariantValue = null;
-    let selectedVariantStock = p.stock || 0;
-    if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
-      const firstOpt = p.variants[0].options[0];
-      selectedVariantValue = firstOpt.value;
-      selectedVariantStock = firstOpt.stock;
-    }
-
-    const cartItem = cart.find(item => item.id === p.id && item.variant?.value === selectedVariantValue);
+    const cartItem = cart.find(item => item.id === p.id && item.variant?.value === activeVariantValue);
     const currentQty = cartItem ? cartItem.qty : 0;
-    const maxQty = selectedVariantStock;
+    const maxQty = activeVariantStock;
 
     const cartControlsHtml = currentQty > 0 ? `
       <div class="quantity-picker">
