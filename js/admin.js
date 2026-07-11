@@ -1,3 +1,4 @@
+// admin.js - полная обновлённая версия
 document.addEventListener('DOMContentLoaded', () => {
   const auth = firebase.auth();
   const db = firebase.firestore();
@@ -63,36 +64,41 @@ document.addEventListener('DOMContentLoaded', () => {
     div.querySelector('.remove-image-btn').addEventListener('click', () => div.remove());
   });
 
-  document.getElementById('add-variant-btn').addEventListener('click', () => {
-    const container = document.getElementById('variants-container');
-    const variantDiv = document.createElement('div');
-    variantDiv.className = 'variant-block';
-    variantDiv.innerHTML = `
-      <input type="text" class="variant-name" placeholder="Название варианта (Размер)" style="width:70%;">
-      <button type="button" class="btn-sm danger remove-variant-btn">Удалить вариант</button>
-      <div class="variant-options"></div>
-      <button type="button" class="btn-sm add-option-btn">+ Значение</button>
-    `;
-    container.appendChild(variantDiv);
-    variantDiv.querySelector('.remove-variant-btn').addEventListener('click', () => variantDiv.remove());
-    variantDiv.querySelector('.add-option-btn').addEventListener('click', () => addOption(variantDiv.querySelector('.variant-options')));
-    addOption(variantDiv.querySelector('.variant-options'));
-  });
-
-  function addOption(optionsContainer) {
-    const row = document.createElement('div');
-    row.className = 'option-row';
-    row.innerHTML = `<input type="text" class="option-value" placeholder="Значение" style="width:40%; margin-right:5px;"><input type="number" class="option-stock" placeholder="Остаток" value="0" style="width:40%;"><button type="button" class="btn-sm danger remove-option-btn">🗑</button>`;
-    optionsContainer.appendChild(row);
-    row.querySelector('.remove-option-btn').addEventListener('click', () => row.remove());
+  function updateTotalStock() {
+    const stocks = document.querySelectorAll('.variant-stock');
+    let total = 0;
+    stocks.forEach(input => total += parseInt(input.value) || 0);
+    const totalStockField = document.getElementById('product-stock');
+    totalStockField.value = total;
+    totalStockField.disabled = stocks.length > 0;
   }
+
+  document.getElementById('add-variant-btn').addEventListener('click', () => {
+    const container = document.getElementById('variants-list');
+    const row = document.createElement('div');
+    row.className = 'variant-row-dynamic';
+    row.innerHTML = `
+      <input type="text" class="variant-value" placeholder="Размер (например XL)" style="width:40%;">
+      <input type="number" class="variant-stock" placeholder="Остаток" value="0" style="width:40%;">
+      <button type="button" class="btn-sm danger remove-variant">🗑</button>
+    `;
+    container.appendChild(row);
+    row.querySelector('.remove-variant').addEventListener('click', () => {
+      row.remove();
+      updateTotalStock();
+    });
+    row.querySelector('.variant-stock').addEventListener('input', updateTotalStock);
+    updateTotalStock();
+  });
 
   document.getElementById('add-product-btn').addEventListener('click', () => {
     document.getElementById('modal-title').textContent = 'Добавить товар';
     document.getElementById('product-form').reset();
     document.getElementById('product-id').value = '';
     document.getElementById('additional-images-container').innerHTML = '';
-    document.getElementById('variants-container').innerHTML = '';
+    document.getElementById('variants-list').innerHTML = '';
+    document.getElementById('product-stock').disabled = false;
+    document.getElementById('product-stock').value = 0;
     document.getElementById('badge-settings').style.display = 'none';
     productModal.style.display = 'flex';
   });
@@ -107,28 +113,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const imageInputs = document.querySelectorAll('.product-image-extra');
     const images = Array.from(imageInputs).map(inp => inp.value.trim()).filter(v => v);
 
-    const variantBlocks = document.querySelectorAll('.variant-block');
-    const variants = [];
-    variantBlocks.forEach(block => {
-      const nameInput = block.querySelector('.variant-name');
-      if (!nameInput.value.trim()) return;
-      const options = [];
-      block.querySelectorAll('.option-row').forEach(row => {
-        const value = row.querySelector('.option-value').value.trim();
-        const stock = parseInt(row.querySelector('.option-stock').value) || 0;
-        if (value) options.push({ value, stock });
-      });
-      if (options.length) variants.push({ name: nameInput.value.trim(), options });
+    const variantRows = document.querySelectorAll('.variant-row-dynamic');
+    const options = [];
+    variantRows.forEach(row => {
+      const value = row.querySelector('.variant-value').value.trim();
+      const stock = parseInt(row.querySelector('.variant-stock').value) || 0;
+      if (value) options.push({ value, stock });
     });
+    const variants = options.length > 0 ? [{ name: 'Размер', options }] : null;
 
     const productData = {
       title: document.getElementById('product-title').value,
       description: document.getElementById('product-description').value,
       price: parseInt(document.getElementById('product-price').value),
-      stock: variants.length ? 0 : parseInt(document.getElementById('product-stock').value),
+      stock: variants ? 0 : parseInt(document.getElementById('product-stock').value),
       image: mainImage,
       images: images.length ? images : [mainImage],
-      variants: variants.length ? variants : null,
+      variants: variants,
       badge: null
     };
 
@@ -178,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let totalStock = data.stock || 0;
         if (data.variants && data.variants.length) {
           totalStock = 0;
-          data.variants.forEach(v => v.options.forEach(o => totalStock += o.stock));
+          data.variants[0].options.forEach(o => totalStock += o.stock);
         }
         products.push({ id: doc.id, ...data, totalStock });
       });
@@ -189,12 +190,12 @@ document.addEventListener('DOMContentLoaded', () => {
       container.innerHTML = `<table><thead><tr><th>Фото</th><th>Название</th><th>Цена</th><th>Остаток</th><th>Бирка</th><th>Действия</th></tr></thead><tbody>
         ${products.map(p => `
           <tr>
-            <td><img src="${p.images && p.images.length ? p.images[0] : p.image}" alt="${p.title}"></td>
-            <td>${p.title}</td>
-            <td>${p.price.toLocaleString()} ₽</td>
-            <td>${p.totalStock}</td>
-            <td>${p.badge ? `<span class="badge-preview" style="background:${p.badge.bgColor};color:${p.badge.color}">${p.badge.text}</span>` : '—'}</td>
-            <td class="actions">
+            <td data-label="Фото"><img src="${p.images && p.images.length ? p.images[0] : p.image}" alt="${p.title}"></td>
+            <td data-label="Название">${p.title}</td>
+            <td data-label="Цена">${p.price.toLocaleString()} ₽</td>
+            <td data-label="Остаток">${p.totalStock}</td>
+            <td data-label="Бирка">${p.badge ? `<span class="badge-preview" style="background:${p.badge.bgColor};color:${p.badge.color}">${p.badge.text}</span>` : '—'}</td>
+            <td data-label="Действия" class="actions">
               <button class="btn-sm supply" data-id="${p.id}" data-name="${p.title}" data-stock="${p.totalStock}">Поставка</button>
               <button class="btn-sm edit" data-id="${p.id}">✏️</button>
               <button class="btn-sm danger delete" data-id="${p.id}">🗑</button>
@@ -241,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('product-image').value = product.image;
 
     document.getElementById('additional-images-container').innerHTML = '';
-    document.getElementById('variants-container').innerHTML = '';
+    document.getElementById('variants-list').innerHTML = '';
 
     if (product.images && product.images.length) {
       product.images.forEach(url => {
@@ -253,28 +254,22 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    if (product.variants && product.variants.length) {
-      product.variants.forEach(variant => {
-        const variantDiv = document.createElement('div');
-        variantDiv.className = 'variant-block';
-        variantDiv.innerHTML = `
-          <input type="text" class="variant-name" value="${variant.name}" style="width:70%;">
-          <button type="button" class="btn-sm danger remove-variant-btn">Удалить</button>
-          <div class="variant-options"></div>
-          <button type="button" class="btn-sm add-option-btn">+ Значение</button>
+    if (product.variants && product.variants.length > 0) {
+      const variant = product.variants[0];
+      variant.options.forEach(opt => {
+        const row = document.createElement('div');
+        row.className = 'variant-row-dynamic';
+        row.innerHTML = `
+          <input type="text" class="variant-value" value="${opt.value}" style="width:40%;">
+          <input type="number" class="variant-stock" value="${opt.stock}" style="width:40%;">
+          <button type="button" class="btn-sm danger remove-variant">🗑</button>
         `;
-        document.getElementById('variants-container').appendChild(variantDiv);
-        variantDiv.querySelector('.remove-variant-btn').addEventListener('click', () => variantDiv.remove());
-        variantDiv.querySelector('.add-option-btn').addEventListener('click', () => addOption(variantDiv.querySelector('.variant-options')));
-        variant.options.forEach(opt => {
-          const row = document.createElement('div');
-          row.className = 'option-row';
-          row.innerHTML = `<input type="text" class="option-value" value="${opt.value}" style="width:40%;"><input type="number" class="option-stock" value="${opt.stock}" style="width:40%;"><button type="button" class="btn-sm danger remove-option-btn">🗑</button>`;
-          variantDiv.querySelector('.variant-options').appendChild(row);
-          row.querySelector('.remove-option-btn').addEventListener('click', () => row.remove());
-        });
+        document.getElementById('variants-list').appendChild(row);
+        row.querySelector('.remove-variant').addEventListener('click', () => { row.remove(); updateTotalStock(); });
+        row.querySelector('.variant-stock').addEventListener('input', updateTotalStock);
       });
     }
+    updateTotalStock();
 
     if (product.badge) {
       document.getElementById('product-has-badge').checked = true;

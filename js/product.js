@@ -1,3 +1,4 @@
+// product.js - обновлённая версия
 const params = new URLSearchParams(window.location.search);
 const productId = params.get('id');
 
@@ -48,6 +49,20 @@ async function loadProduct() {
       return;
     }
     product = { id: doc.id, ...doc.data() };
+
+    const reviewsSnapshot = await db.collection('reviews')
+      .where('productId', '==', productId)
+      .where('approved', '==', true)
+      .get();
+    let totalRating = 0, count = 0;
+    reviewsSnapshot.forEach(doc => {
+      totalRating += doc.data().rating;
+      count++;
+    });
+    const avg = count > 0 ? (totalRating / count).toFixed(1) : '0.0';
+    document.getElementById('avg-rating').textContent = avg;
+    document.getElementById('review-count').textContent = count;
+
     renderProduct();
     if (product.variants && product.variants.length > 0) {
       setupVariantSelector();
@@ -107,7 +122,7 @@ function setupGallery() {
 }
 
 function setupVariantSelector() {
-  const container = document.getElementById('variant-selector');
+  const container = document.getElementById('variant-pills');
   const variant = product.variants[0];
   const options = variant.options.filter(o => o.stock > 0);
   if (!options.length) {
@@ -116,50 +131,35 @@ function setupVariantSelector() {
     return;
   }
 
-  const select = document.createElement('select');
-  select.id = 'variant-select';
-  select.innerHTML = options.map(o => `<option value="${o.value}">${o.value} (${o.stock} шт.)</option>`).join('');
-  container.innerHTML = `<label>${variant.name}:</label>`;
-  container.appendChild(select);
+  container.innerHTML = options.map((opt, idx) =>
+    `<span class="variant-pill ${idx === 0 ? ' active' : ''}" data-value="${opt.value}" data-stock="${opt.stock}">${opt.value}</span>`
+  ).join('');
 
-  const stockInfo = document.getElementById('stock-info');
+  selectedVariant = { name: variant.name, value: options[0].value };
+  updateStockInfo(options[0].stock);
+
+  container.querySelectorAll('.variant-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      container.querySelectorAll('.variant-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      const value = pill.dataset.value;
+      const stock = parseInt(pill.dataset.stock);
+      selectedVariant = { name: variant.name, value };
+      updateStockInfo(stock);
+      resetQuantity(stock);
+    });
+  });
+}
+
+function updateStockInfo(stock) {
+  document.getElementById('stock-info').textContent = `Доступно: ${stock} шт.`;
+}
+
+function resetQuantity(max) {
   const qtyValue = document.getElementById('qty-value');
-  const increaseBtn = document.getElementById('qty-increase');
-  const decreaseBtn = document.getElementById('qty-decrease');
-
-  function update() {
-    const value = select.value;
-    selectedVariant = { name: variant.name, value };
-    const option = options.find(o => o.value === value);
-    if (option) {
-      stockInfo.textContent = `Доступно: ${option.stock} шт.`;
-      const currentQty = parseInt(qtyValue.textContent);
-      if (currentQty > option.stock) qtyValue.textContent = option.stock;
-      increaseBtn.disabled = parseInt(qtyValue.textContent) >= option.stock;
-      decreaseBtn.disabled = parseInt(qtyValue.textContent) <= 1;
-    }
-  }
-
-  select.addEventListener('change', update);
-  update();
-
-  increaseBtn.onclick = () => {
-    let qty = parseInt(qtyValue.textContent);
-    const max = options.find(o => o.value === select.value).stock;
-    if (qty < max) {
-      qtyValue.textContent = qty + 1;
-      increaseBtn.disabled = (qty + 1) >= max;
-      decreaseBtn.disabled = false;
-    }
-  };
-  decreaseBtn.onclick = () => {
-    let qty = parseInt(qtyValue.textContent);
-    if (qty > 1) {
-      qtyValue.textContent = qty - 1;
-      decreaseBtn.disabled = (qty - 1) <= 1;
-      increaseBtn.disabled = false;
-    }
-  };
+  qtyValue.textContent = 1;
+  document.getElementById('qty-increase').disabled = max <= 1;
+  document.getElementById('qty-decrease').disabled = true;
 }
 
 function setupAddToCart() {
@@ -236,6 +236,7 @@ function submitReview() {
     selectedRating = 0;
     updateStars();
     loadReviews();
+    loadProduct();
   }).catch(err => {
     document.getElementById('review-message').textContent = 'Ошибка: ' + err.message;
   });

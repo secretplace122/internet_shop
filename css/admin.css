@@ -1,3 +1,4 @@
+/* admin.css - обновлённая версия с адаптивностью */
 :root {
   --white: #ffffff;
   --light-bg: #f4f6fb;
@@ -220,15 +221,46 @@ body {
 .order-card ul { list-style: none; margin-top: 10px; padding: 0; }
 .order-card ul li { font-size: 0.85rem; padding: 3px 0; border-bottom: 1px dashed var(--border); }
 
+.variant-row-dynamic {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+}
+
 .image-input-row { display: flex; align-items: center; gap: 5px; margin-top: 5px; }
-.variant-block { background: var(--light-bg); padding: 10px; border-radius: 8px; margin: 10px 0; }
-.option-row { display: flex; align-items: center; gap: 5px; margin-top: 5px; }
 
 @media (max-width: 768px) {
-  .admin-tabs, .tab-content, .admin-header { padding: 15px; }
-  .products-list table { font-size: 0.8rem; }
-  .products-list th:nth-child(1), .products-list td:nth-child(1) { width: 60px; }
-  .products-list th, .products-list td { padding: 6px 8px; }
-  .orders-grid { grid-template-columns: 1fr; }
+  .products-list table, .products-list thead, .products-list tbody, .products-list th, .products-list td, .products-list tr {
+    display: block;
+  }
+  .products-list thead tr { display: none; }
+  .products-list tbody tr {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 15px;
+    padding: 15px;
+    position: relative;
+  }
+  .products-list td {
+    border: none;
+    padding: 6px 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .products-list td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    width: 100px;
+    min-width: 100px;
+    color: var(--text-light);
+  }
+  .products-list td:first-child { justify-content: center; }
+  .products-list td:first-child::before { display: none; }
+  .products-list img { width: 80px; height: 80px; }
+  .actions { justify-content: flex-end; }
   .modal-content { padding: 20px; }
 }

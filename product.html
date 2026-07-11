@@ -1,3 +1,4 @@
+<!-- product.html - обновлённая версия -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -14,7 +15,7 @@
 </head>
 <body>
   <header class="product-header">
-    <a href="index.html" class="back-link">← Назад</a>
+    <a href="index.html" class="back-link-btn">← Назад</a>
   </header>
   <main class="product-main container">
     <div class="product-gallery" id="product-gallery">
@@ -27,9 +28,17 @@
     </div>
     <div class="product-details">
       <h1 id="product-title"></h1>
+      <div class="rating-row" id="rating-row">
+        <span class="rating-star">★</span>
+        <span class="rating-value" id="avg-rating">0.0</span>
+        <span class="review-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          <span id="review-count">0</span>
+        </span>
+      </div>
       <p id="product-description"></p>
       <div class="product-price" id="product-price"></div>
-      <div id="variant-selector" class="variant-selector"></div>
+      <div class="variant-pills" id="variant-pills"></div>
       <div class="stock-info" id="stock-info"></div>
       <div class="quantity-row">
         <div class="quantity-picker">

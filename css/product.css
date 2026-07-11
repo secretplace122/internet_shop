@@ -1,5 +1,15 @@
+/* product.css - обновлённая версия */
 .product-header { background: var(--white); border-bottom: 1px solid var(--border); padding: 15px 30px; }
-.back-link { text-decoration: none; color: var(--primary); font-weight: 600; }
+.back-link-btn {
+  text-decoration: none;
+  color: var(--primary);
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 8px;
+  background: var(--primary-light);
+  display: inline-block;
+}
+.back-link-btn:hover { background: var(--primary); color: white; }
 .product-main { display: flex; flex-wrap: wrap; gap: 40px; padding: 40px 0; }
 .product-gallery { flex: 1 1 45%; max-width: 500px; }
 .gallery-container { position: relative; overflow: hidden; border-radius: var(--radius); }
@@ -18,7 +28,22 @@
 .product-details { flex: 1 1 45%; }
 .product-details h1 { font-size: 2rem; margin-bottom: 15px; }
 .product-price { font-size: 2rem; font-weight: 700; color: var(--primary-hover); margin: 20px 0; }
-.variant-selector { margin: 20px 0; }
+.variant-pills { display: flex; gap: 8px; margin: 15px 0; flex-wrap: wrap; }
+.variant-pill {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  font-size: 0.9rem;
+  cursor: pointer;
+  white-space: nowrap;
+  background: var(--white);
+  transition: var(--transition);
+}
+.variant-pill.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
 .stock-info { font-size: 0.9rem; color: var(--text-light); margin-bottom: 15px; }
 .quantity-row { display: flex; align-items: center; gap: 15px; margin-top: 20px; }
 .add-to-cart-btn { width: auto; padding: 14px 32px; }
