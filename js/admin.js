@@ -1,4 +1,3 @@
-// admin.js - полная обновлённая версия
 document.addEventListener('DOMContentLoaded', () => {
   const auth = firebase.auth();
   const db = firebase.firestore();
@@ -59,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('additional-images-container');
     const div = document.createElement('div');
     div.className = 'image-input-row';
-    div.innerHTML = `<input type="url" class="product-image-extra" placeholder="URL изображения" style="width:80%; margin-right:5px;"><button type="button" class="btn-sm danger remove-image-btn">🗑</button>`;
+    div.innerHTML = '<input type="url" class="product-image-extra" placeholder="URL изображения" style="width:80%; margin-right:5px;"><button type="button" class="btn-sm danger remove-image-btn">🗑</button>';
     container.appendChild(div);
     div.querySelector('.remove-image-btn').addEventListener('click', () => div.remove());
   });
@@ -77,11 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('variants-list');
     const row = document.createElement('div');
     row.className = 'variant-row-dynamic';
-    row.innerHTML = `
-      <input type="text" class="variant-value" placeholder="Размер (например XL)" style="width:40%;">
-      <input type="number" class="variant-stock" placeholder="Остаток" value="0" style="width:40%;">
-      <button type="button" class="btn-sm danger remove-variant">🗑</button>
-    `;
+    row.innerHTML = '<input type="text" class="variant-value" placeholder="Размер (например XL)" style="width:40%;"><input type="number" class="variant-stock" placeholder="Остаток" value="0" style="width:40%;"><button type="button" class="btn-sm danger remove-variant">🗑</button>';
     container.appendChild(row);
     row.querySelector('.remove-variant').addEventListener('click', () => {
       row.remove();
@@ -120,13 +115,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const stock = parseInt(row.querySelector('.variant-stock').value) || 0;
       if (value) options.push({ value, stock });
     });
-    const variants = options.length > 0 ? [{ name: 'Размер', options }] : null;
+
+    let variants = null;
+    let stock = parseInt(document.getElementById('product-stock').value) || 0;
+
+    if (options.length > 0) {
+      variants = [{ name: 'Размер', options }];
+      stock = 0;
+    }
 
     const productData = {
       title: document.getElementById('product-title').value,
       description: document.getElementById('product-description').value,
       price: parseInt(document.getElementById('product-price').value),
-      stock: variants ? 0 : parseInt(document.getElementById('product-stock').value),
+      stock: stock,
       image: mainImage,
       images: images.length ? images : [mainImage],
       variants: variants,
@@ -154,20 +156,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  document.getElementById('supply-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const id = document.getElementById('supply-product-id').value;
-    const qty = parseInt(document.getElementById('supply-qty').value);
-    const currentStock = parseInt(document.getElementById('supply-current-stock').textContent);
-    try {
-      await db.collection('products').doc(id).update({ stock: currentStock + qty });
-      supplyModal.style.display = 'none';
-      loadProducts();
-    } catch (err) {
-      alert('Ошибка: ' + err.message);
-    }
-  });
-
   async function loadProducts() {
     const container = document.getElementById('products-list');
     container.innerHTML = '<p>Загрузка...</p>';
@@ -177,9 +165,13 @@ document.addEventListener('DOMContentLoaded', () => {
       snapshot.forEach(doc => {
         const data = doc.data();
         let totalStock = data.stock || 0;
-        if (data.variants && data.variants.length) {
+        if (data.variants && Array.isArray(data.variants) && data.variants.length) {
           totalStock = 0;
-          data.variants[0].options.forEach(o => totalStock += o.stock);
+          data.variants.forEach(v => {
+            if (v.options && Array.isArray(v.options)) {
+              v.options.forEach(o => totalStock += o.stock || 0);
+            }
+          });
         }
         products.push({ id: doc.id, ...data, totalStock });
       });
@@ -187,22 +179,9 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = '<p>Товаров пока нет.</p>';
         return;
       }
-      container.innerHTML = `<table><thead><tr><th>Фото</th><th>Название</th><th>Цена</th><th>Остаток</th><th>Бирка</th><th>Действия</th></tr></thead><tbody>
-        ${products.map(p => `
-          <tr>
-            <td data-label="Фото"><img src="${p.images && p.images.length ? p.images[0] : p.image}" alt="${p.title}"></td>
-            <td data-label="Название">${p.title}</td>
-            <td data-label="Цена">${p.price.toLocaleString()} ₽</td>
-            <td data-label="Остаток">${p.totalStock}</td>
-            <td data-label="Бирка">${p.badge ? `<span class="badge-preview" style="background:${p.badge.bgColor};color:${p.badge.color}">${p.badge.text}</span>` : '—'}</td>
-            <td data-label="Действия" class="actions">
-              <button class="btn-sm supply" data-id="${p.id}" data-name="${p.title}" data-stock="${p.totalStock}">Поставка</button>
-              <button class="btn-sm edit" data-id="${p.id}">✏️</button>
-              <button class="btn-sm danger delete" data-id="${p.id}">🗑</button>
-            </td>
-          </tr>
-        `).join('')}
-      </tbody></table>`;
+      container.innerHTML = '<table><thead><tr><th>Фото</th><th>Название</th><th>Цена</th><th>Остаток</th><th>Бирка</th><th>Действия</th></tr></thead><tbody>' +
+        products.map(p => '<tr><td data-label="Фото"><img src="' + (p.images && p.images.length ? p.images[0] : p.image) + '" alt="' + p.title + '"></td><td data-label="Название">' + p.title + '</td><td data-label="Цена">' + p.price.toLocaleString() + ' ₽</td><td data-label="Остаток">' + p.totalStock + '</td><td data-label="Бирка">' + (p.badge ? '<span class="badge-preview" style="background:' + p.badge.bgColor + ';color:' + p.badge.color + '">' + p.badge.text + '</span>' : '—') + '</td><td data-label="Действия" class="actions"><button class="btn-sm edit" data-id="' + p.id + '">✏️</button><button class="btn-sm danger delete" data-id="' + p.id + '">🗑</button></td></tr>').join('') +
+        '</tbody></table>';
 
       container.querySelectorAll('.edit').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -216,15 +195,6 @@ document.addEventListener('DOMContentLoaded', () => {
             await db.collection('products').doc(btn.dataset.id).delete();
             loadProducts();
           }
-        });
-      });
-      container.querySelectorAll('.supply').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.getElementById('supply-product-id').value = btn.dataset.id;
-          document.getElementById('supply-product-name').textContent = btn.dataset.name;
-          document.getElementById('supply-current-stock').textContent = btn.dataset.stock;
-          document.getElementById('supply-qty').value = '';
-          supplyModal.style.display = 'flex';
         });
       });
     } catch (err) {
@@ -248,26 +218,24 @@ document.addEventListener('DOMContentLoaded', () => {
       product.images.forEach(url => {
         const div = document.createElement('div');
         div.className = 'image-input-row';
-        div.innerHTML = `<input type="url" class="product-image-extra" value="${url}" style="width:80%;"><button type="button" class="btn-sm danger remove-image-btn">🗑</button>`;
+        div.innerHTML = '<input type="url" class="product-image-extra" value="' + url + '" style="width:80%;"><button type="button" class="btn-sm danger remove-image-btn">🗑</button>';
         document.getElementById('additional-images-container').appendChild(div);
         div.querySelector('.remove-image-btn').addEventListener('click', () => div.remove());
       });
     }
 
-    if (product.variants && product.variants.length > 0) {
+    if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
       const variant = product.variants[0];
-      variant.options.forEach(opt => {
-        const row = document.createElement('div');
-        row.className = 'variant-row-dynamic';
-        row.innerHTML = `
-          <input type="text" class="variant-value" value="${opt.value}" style="width:40%;">
-          <input type="number" class="variant-stock" value="${opt.stock}" style="width:40%;">
-          <button type="button" class="btn-sm danger remove-variant">🗑</button>
-        `;
-        document.getElementById('variants-list').appendChild(row);
-        row.querySelector('.remove-variant').addEventListener('click', () => { row.remove(); updateTotalStock(); });
-        row.querySelector('.variant-stock').addEventListener('input', updateTotalStock);
-      });
+      if (variant.options && Array.isArray(variant.options)) {
+        variant.options.forEach(opt => {
+          const row = document.createElement('div');
+          row.className = 'variant-row-dynamic';
+          row.innerHTML = '<input type="text" class="variant-value" value="' + opt.value + '" style="width:40%;"><input type="number" class="variant-stock" value="' + opt.stock + '" style="width:40%;"><button type="button" class="btn-sm danger remove-variant">🗑</button>';
+          document.getElementById('variants-list').appendChild(row);
+          row.querySelector('.remove-variant').addEventListener('click', () => { row.remove(); updateTotalStock(); });
+          row.querySelector('.variant-stock').addEventListener('input', updateTotalStock);
+        });
+      }
     }
     updateTotalStock();
 
@@ -295,27 +263,12 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = '<p>Заказов пока нет.</p>';
         return;
       }
-      container.innerHTML = `<div class="orders-grid">` + orders.map(order => {
+      container.innerHTML = '<div class="orders-grid">' + orders.map(order => {
         const items = order.items || [];
-        const itemsHtml = items.map(item =>
-          `<li>${item.title}${item.variantName ? ` (${item.variantName}: ${item.variantValue})` : ''} x${item.qty} = ${(item.price * item.qty).toLocaleString()} ₽</li>`
-        ).join('');
+        const itemsHtml = items.map(item => '<li>' + item.title + (item.variantName ? ' (' + item.variantName + ': ' + item.variantValue + ')' : '') + ' x' + item.qty + ' = ' + (item.price * item.qty).toLocaleString() + ' ₽</li>').join('');
         const date = order.createdAt ? new Date(order.createdAt.seconds * 1000).toLocaleString('ru-RU') : '—';
-        return `
-          <div class="order-card">
-            <h3>Заказ №${order.orderNumber || order.id}</h3>
-            <p><strong>Дата:</strong> ${date}</p>
-            <p><strong>Статус:</strong> <span class="order-status">${order.status}</span></p>
-            <p><strong>Сумма:</strong> ${order.amount} ${order.currency}</p>
-            <p><strong>Чек:</strong> ${order.paymentId}</p>
-            <p><strong>Покупатель:</strong> ${order.customerName}</p>
-            <p><strong>Телефон:</strong> ${order.customerPhone}</p>
-            <p><strong>Email:</strong> ${order.customerEmail || '—'}</p>
-            <p><strong>Адрес:</strong> ${order.deliveryAddress}</p>
-            <ul>${itemsHtml}</ul>
-          </div>
-        `;
-      }).join('') + `</div>`;
+        return '<div class="order-card"><h3>Заказ №' + (order.orderNumber || order.id) + '</h3><p><strong>Дата:</strong> ' + date + '</p><p><strong>Статус:</strong> <span class="order-status">' + order.status + '</span></p><p><strong>Сумма:</strong> ' + order.amount + ' ' + order.currency + '</p><p><strong>Чек:</strong> ' + order.paymentId + '</p><p><strong>Покупатель:</strong> ' + order.customerName + '</p><p><strong>Телефон:</strong> ' + order.customerPhone + '</p><p><strong>Email:</strong> ' + (order.customerEmail || '—') + '</p><p><strong>Адрес:</strong> ' + order.deliveryAddress + '</p><ul>' + itemsHtml + '</ul></div>';
+      }).join('') + '</div>';
     } catch (err) {
       container.innerHTML = '<p>Ошибка загрузки заказов: ' + err.message + '</p>';
     }
