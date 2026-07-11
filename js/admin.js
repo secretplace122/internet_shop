@@ -9,7 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     const errorEl = document.getElementById('login-error');
-    try { await auth.signInWithEmailAndPassword(email, password); } catch (err) { errorEl.textContent = 'Ошибка входа: ' + err.message; }
+    try {
+      await auth.signInWithEmailAndPassword(email, password);
+    } catch (err) {
+      errorEl.textContent = 'Ошибка входа: ' + err.message;
+    }
   });
 
   auth.onAuthStateChanged((user) => {
@@ -38,8 +42,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const productModal = document.getElementById('product-modal');
   const supplyModal = document.getElementById('supply-modal');
-  document.querySelectorAll('.close').forEach(c => { c.addEventListener('click', () => { productModal.style.display = 'none'; supplyModal.style.display = 'none'; }); });
-  window.addEventListener('click', (e) => { if (e.target === productModal) productModal.style.display = 'none'; if (e.target === supplyModal) supplyModal.style.display = 'none'; });
+
+  document.querySelectorAll('.close').forEach(closeBtn => {
+    closeBtn.addEventListener('click', () => {
+      productModal.style.display = 'none';
+      supplyModal.style.display = 'none';
+    });
+  });
+
+  document.getElementById('product-has-badge').addEventListener('change', (e) => {
+    document.getElementById('badge-settings').style.display = e.target.checked ? 'block' : 'none';
+  });
 
   document.getElementById('add-image-btn').addEventListener('click', () => {
     const container = document.getElementById('additional-images-container');
@@ -55,8 +68,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const variantDiv = document.createElement('div');
     variantDiv.className = 'variant-block';
     variantDiv.innerHTML = `
-      <input type="text" class="variant-name" placeholder="Название варианта" style="width:70%;">
-      <button type="button" class="btn-sm danger remove-variant-btn">Удалить</button>
+      <input type="text" class="variant-name" placeholder="Название варианта (Размер)" style="width:70%;">
+      <button type="button" class="btn-sm danger remove-variant-btn">Удалить вариант</button>
       <div class="variant-options"></div>
       <button type="button" class="btn-sm add-option-btn">+ Значение</button>
     `;
@@ -74,10 +87,6 @@ document.addEventListener('DOMContentLoaded', () => {
     row.querySelector('.remove-option-btn').addEventListener('click', () => row.remove());
   }
 
-  document.getElementById('product-has-badge').addEventListener('change', (e) => {
-    document.getElementById('badge-settings').style.display = e.target.checked ? 'block' : 'none';
-  });
-
   document.getElementById('add-product-btn').addEventListener('click', () => {
     document.getElementById('modal-title').textContent = 'Добавить товар';
     document.getElementById('product-form').reset();
@@ -92,11 +101,11 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     const id = document.getElementById('product-id').value;
     const hasBadge = document.getElementById('product-has-badge').checked;
+    const mainImage = document.getElementById('product-image').value.trim();
+    if (!mainImage) { alert('Укажите главное изображение'); return; }
 
     const imageInputs = document.querySelectorAll('.product-image-extra');
     const images = Array.from(imageInputs).map(inp => inp.value.trim()).filter(v => v);
-    const mainImage = document.getElementById('product-image').value.trim();
-    if (!mainImage) { alert('Укажите главное изображение'); return; }
 
     const variantBlocks = document.querySelectorAll('.variant-block');
     const variants = [];
@@ -230,6 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('product-price').value = product.price;
     document.getElementById('product-stock').value = product.stock || 0;
     document.getElementById('product-image').value = product.image;
+
     document.getElementById('additional-images-container').innerHTML = '';
     document.getElementById('variants-container').innerHTML = '';
 

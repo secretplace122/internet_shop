@@ -23,12 +23,9 @@ document.querySelectorAll('#star-rating span').forEach(star => {
     updateStars();
   });
   star.addEventListener('mouseenter', function() {
-    const rating = parseInt(this.dataset.rating);
-    highlightStars(rating);
+    highlightStars(parseInt(this.dataset.rating));
   });
-  star.addEventListener('mouseleave', function() {
-    updateStars();
-  });
+  star.addEventListener('mouseleave', updateStars);
 });
 
 function highlightStars(rating) {

@@ -20,8 +20,7 @@ async function loadProducts() {
       products.push({ id: doc.id, ...data });
     });
     currentProducts = products;
-    const productIds = products.map(p => p.id);
-    const reviewsData = await fetchReviewsData(productIds);
+    const reviewsData = await fetchReviewsData(products.map(p => p.id));
     renderProducts(products, reviewsData);
   } catch (error) {
     console.warn('Ошибка загрузки:', error);
@@ -72,7 +71,14 @@ function renderProducts(products, reviewsData) {
       </div>`;
 
     const rev = reviewsData[p.id] || { avg: '0', count: 0 };
-    const starsHtml = '★'.repeat(Math.round(rev.avg)) + '☆'.repeat(5 - Math.round(rev.avg));
+
+    let stockInfo = '';
+    if (p.variants && p.variants.length > 0) {
+      const totalStock = p.variants[0].options.reduce((sum, opt) => sum + opt.stock, 0);
+      stockInfo = `<span class="stock-badge">Осталось: ${totalStock} шт.</span>`;
+    } else {
+      stockInfo = `<span class="stock-badge">Осталось: ${p.stock || 0} шт.</span>`;
+    }
 
     let variantsHtml = '';
     if (p.variants && p.variants.length > 0) {
@@ -115,9 +121,14 @@ function renderProducts(products, reviewsData) {
           <h3>${p.title}</h3>
           <p class="description">${p.description}</p>
           <div class="rating-row">
-            <span class="stars">${starsHtml}</span>
-            <span class="review-count">${rev.count} отзывов</span>
+            <span class="rating-star">★</span>
+            <span class="rating-value">${rev.avg}</span>
+            <span class="review-icon">
+              <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+              ${rev.count}
+            </span>
           </div>
+          ${stockInfo}
           ${variantsHtml}
           <div class="price">${p.price.toLocaleString()} ₽</div>
           <div class="cart-controls" id="controls-${p.id}">
@@ -127,6 +138,13 @@ function renderProducts(products, reviewsData) {
       </div>
     `;
   }).join('');
+
+  container.querySelectorAll('.product-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('button') || e.target.closest('.variant-pill')) return;
+      window.location.href = `product.html?id=${card.dataset.id}`;
+    });
+  });
 
   container.querySelectorAll('.variant-pill').forEach(pill => {
     pill.addEventListener('click', (e) => {
@@ -139,7 +157,10 @@ function renderProducts(products, reviewsData) {
   });
 
   container.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', handleCartAction);
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleCartAction(e);
+    });
   });
 }
 
@@ -173,11 +194,16 @@ function updateCartControlsForCard(productId) {
   ` : `
     <button class="add-to-cart" data-id="${productId}" data-action="add">В корзину</button>
   `;
-  controls.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', handleCartAction));
+  controls.querySelectorAll('[data-action]').forEach(b => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleCartAction(e);
+    });
+  });
 }
 
 function handleCartAction(e) {
-  e.preventDefault();
+  e.stopPropagation();
   const action = e.target.dataset.action;
   const productId = e.target.dataset.id || e.target.closest('.product-card').dataset.id;
   const product = currentProducts.find(p => p.id === productId);
@@ -341,7 +367,7 @@ function handleCartItemAction(e) {
   }
   renderCart();
   updateCartUI();
-  loadProducts(); 
+  loadProducts();
 }
 
 function showCheckoutForm() {
@@ -424,6 +450,14 @@ function showCheckoutForm() {
       clearTimeout(timeoutId);
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
+        if (errData.error && errData.error.includes('недостаточно')) {
+          errorEl.textContent = errData.error;
+          cart = [];
+          saveCart();
+          updateCartUI();
+          loadProducts();
+          return;
+        }
         throw new Error(errData.error || `Ошибка: ${response.status}`);
       }
       const result = await response.json();
