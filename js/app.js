@@ -72,23 +72,23 @@ function renderProducts(products, reviewsData) {
 
     const rev = reviewsData[p.id] || { avg: '0', count: 0 };
 
-    let stockInfo = '';
-    if (p.variants && p.variants.length > 0) {
-      const totalStock = p.variants[0].options.reduce((sum, opt) => sum + opt.stock, 0);
-      stockInfo = `<span class="stock-badge">Осталось: ${totalStock} шт.</span>`;
-    } else {
-      stockInfo = `<span class="stock-badge">Осталось: ${p.stock || 0} шт.</span>`;
-    }
-
     let variantsHtml = '';
+    let variantStockHtml = '';
     if (p.variants && p.variants.length > 0) {
       const firstVariant = p.variants[0];
+      const defaultOption = firstVariant.options[0];
       variantsHtml = `
         <div class="variant-row" data-variant-name="${firstVariant.name}">
-          ${firstVariant.options.map((opt, idx) => `
-            <span class="variant-pill${idx === 0 ? ' active' : ''}" data-value="${opt.value}" data-stock="${opt.stock}">${opt.value}</span>
+          ${firstVariant.options.map(opt => `
+            <span class="variant-pill${opt.stock === 0 ? ' disabled' : ''}${opt.value === defaultOption.value ? ' active' : ''}"
+                  data-value="${opt.value}" data-stock="${opt.stock}">
+              ${opt.value}
+            </span>
           `).join('')}
         </div>`;
+      variantStockHtml = `<span class="variant-stock" id="stock-${p.id}">Осталось: ${defaultOption.stock} шт.</span>`;
+    } else {
+      variantStockHtml = `<span class="stock-badge">Осталось: ${p.stock || 0} шт.</span>`;
     }
 
     let selectedVariantValue = null;
@@ -128,7 +128,7 @@ function renderProducts(products, reviewsData) {
               ${rev.count}
             </span>
           </div>
-          ${stockInfo}
+          ${variantStockHtml}
           ${variantsHtml}
           <div class="price">${p.price.toLocaleString()} ₽</div>
           <div class="cart-controls" id="controls-${p.id}">
@@ -146,13 +146,18 @@ function renderProducts(products, reviewsData) {
     });
   });
 
-  container.querySelectorAll('.variant-pill').forEach(pill => {
+  container.querySelectorAll('.variant-pill:not(.disabled)').forEach(pill => {
     pill.addEventListener('click', (e) => {
       e.stopPropagation();
       const row = pill.parentElement;
       row.querySelectorAll('.variant-pill').forEach(p => p.classList.remove('active'));
       pill.classList.add('active');
-      updateCartControlsForCard(pill.closest('.product-card').dataset.id);
+      const productId = pill.closest('.product-card').dataset.id;
+      const stockEl = document.getElementById(`stock-${productId}`);
+      if (stockEl) {
+        stockEl.textContent = `Осталось: ${pill.dataset.stock} шт.`;
+      }
+      updateCartControlsForCard(productId);
     });
   });
 
@@ -179,9 +184,23 @@ function updateCartControlsForCard(productId) {
   const controls = card.querySelector('.cart-controls');
   const product = currentProducts.find(p => p.id === productId);
   if (!product) return;
-  const variant = getSelectedVariant(productId);
-  const max = variant ? variant.stock : (product.stock || 0);
-  const cartItem = cart.find(item => item.id === productId && item.variant?.value === variant?.value);
+
+  let max = product.stock || 0;
+  let variant = null;
+
+  if (product.variants && product.variants.length > 0) {
+    const activePill = card.querySelector('.variant-pill.active');
+    if (activePill) {
+      const variantName = card.querySelector('.variant-row').dataset.variantName;
+      const value = activePill.dataset.value;
+      max = parseInt(activePill.dataset.stock) || 0;
+      variant = { name: variantName, value, stock: max };
+    }
+  }
+
+  const cartItem = variant
+    ? cart.find(item => item.id === productId && item.variant?.value === variant.value)
+    : cart.find(item => item.id === productId && !item.variant);
   const currentQty = cartItem ? cartItem.qty : 0;
 
   controls.innerHTML = currentQty > 0 ? `
@@ -194,6 +213,7 @@ function updateCartControlsForCard(productId) {
   ` : `
     <button class="add-to-cart" data-id="${productId}" data-action="add">В корзину</button>
   `;
+
   controls.querySelectorAll('[data-action]').forEach(b => {
     b.addEventListener('click', (e) => {
       e.stopPropagation();
