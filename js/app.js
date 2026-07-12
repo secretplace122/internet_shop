@@ -1,4 +1,6 @@
 const API_URL = 'https://functions.yandexcloud.net/d4eengms62slq876jbka';
+const CACHE_KEY = 'productsCache';
+const CACHE_TTL = 5 * 60 * 1000; // 5 минут
 
 document.addEventListener('DOMContentLoaded', () => {
   loadProducts();
@@ -8,9 +10,20 @@ document.addEventListener('DOMContentLoaded', () => {
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
 let currentProducts = [];
 
-async function loadProducts() {
+async function loadProducts(forceRefresh = false) {
   const container = document.getElementById('products-container');
   container.innerHTML = '<p>Загрузка товаров…</p>';
+
+  if (!forceRefresh) {
+    const cached = getCachedProducts();
+    if (cached) {
+      currentProducts = cached;
+      const reviewsData = await fetchReviewsData(cached.map(p => p.id));
+      renderProducts(cached, reviewsData);
+      return;
+    }
+  }
+
   try {
     if (typeof db === 'undefined') throw new Error('Firebase не подключена');
     const snapshot = await db.collection('products').get();
@@ -20,12 +33,41 @@ async function loadProducts() {
       products.push({ id: doc.id, ...data });
     });
     currentProducts = products;
+    setCachedProducts(products);
     const reviewsData = await fetchReviewsData(products.map(p => p.id));
     renderProducts(products, reviewsData);
   } catch (error) {
     console.warn('Ошибка загрузки:', error);
-    renderProducts([], {});
+    const cached = getCachedProducts(true);
+    if (cached) {
+      currentProducts = cached;
+      renderProducts(cached, {});
+    } else {
+      renderProducts([], {});
+    }
   }
+}
+
+function getCachedProducts(ignoreExpiry = false) {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const cache = JSON.parse(raw);
+    if (!cache.timestamp || !Array.isArray(cache.products)) return null;
+    if (!ignoreExpiry && Date.now() - cache.timestamp > CACHE_TTL) return null;
+    return cache.products;
+  } catch (e) {
+    return null;
+  }
+}
+
+function setCachedProducts(products) {
+  const cache = { timestamp: Date.now(), products };
+  localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+}
+
+function clearProductsCache() {
+  localStorage.removeItem(CACHE_KEY);
 }
 
 async function fetchReviewsData(productIds) {
@@ -147,7 +189,7 @@ function renderProducts(products, reviewsData) {
   container.querySelectorAll('.product-card').forEach(card => {
     card.addEventListener('click', (e) => {
       if (e.target.closest('button') || e.target.closest('.variant-pill')) return;
-      window.location.href = `product.html?id=${card.dataset.id}`;
+      window.location.href = `products/${card.dataset.id}/`;
     });
   });
 
@@ -266,6 +308,7 @@ function handleCartAction(e) {
   }
   updateCartUI();
   updateCartControlsForCard(productId);
+  updateAllCartControls();
   if (document.getElementById('cart-modal').style.display === 'flex') {
     renderCart();
   }
@@ -416,7 +459,13 @@ function handleCartItemAction(e) {
   }
   renderCart();
   updateCartUI();
-  loadProducts();
+  updateAllCartControls();
+}
+
+function updateAllCartControls() {
+  document.querySelectorAll('.product-card').forEach(card => {
+    updateCartControlsForCard(card.dataset.id);
+  });
 }
 
 function showCheckoutForm() {
@@ -504,7 +553,8 @@ function showCheckoutForm() {
           cart = [];
           saveCart();
           updateCartUI();
-          loadProducts();
+          clearProductsCache();
+          loadProducts(true);
           return;
         }
         throw new Error(errData.error || `Ошибка: ${response.status}`);

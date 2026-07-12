@@ -1,7 +1,6 @@
 const params = new URLSearchParams(window.location.search);
 const productId = params.get('id');
 
-// Корзина (аналогично главной)
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -22,7 +21,7 @@ let selectedVariant = null;
 let selectedRating = 0;
 let currentMaxStock = 0;
 
-/* --- star rating helpers --- */
+/* --- star rating --- */
 document.querySelectorAll('#star-rating span').forEach(star => {
   star.addEventListener('click', function() {
     selectedRating = parseInt(this.dataset.rating);
@@ -46,27 +45,57 @@ function updateStars() {
   });
 }
 
+/* --- кеширование товара --- */
+const PRODUCT_CACHE_PREFIX = 'productCache_';
+const PRODUCT_CACHE_TTL = 5 * 60 * 1000;
+
+function getCachedProduct(id) {
+  try {
+    const raw = localStorage.getItem(PRODUCT_CACHE_PREFIX + id);
+    if (!raw) return null;
+    const cache = JSON.parse(raw);
+    if (Date.now() - cache.timestamp > PRODUCT_CACHE_TTL) return null;
+    return cache.product;
+  } catch (e) {
+    return null;
+  }
+}
+
+function setCachedProduct(id, product) {
+  const cache = { timestamp: Date.now(), product };
+  localStorage.setItem(PRODUCT_CACHE_PREFIX + id, JSON.stringify(cache));
+}
+
 /* --- загрузка товара --- */
 async function loadProduct() {
   try {
+    const cached = getCachedProduct(productId);
+    if (cached) {
+      product = { id: productId, ...cached };
+      afterProductLoad();
+      return;
+    }
+
     const doc = await db.collection('products').doc(productId).get();
     if (!doc.exists) {
       document.body.innerHTML = 'Товар не найден';
       return;
     }
     product = { id: doc.id, ...doc.data() };
-    const reviewsSnapshot = await db.collection('reviews')
-      .where('productId', '==', productId)
-      .where('approved', '==', true)
-      .get();
-    let totalRating = 0, count = 0;
-    reviewsSnapshot.forEach(doc => {
-      totalRating += doc.data().rating;
-      count++;
-    });
-    const avg = count > 0 ? (totalRating / count).toFixed(1) : '0.0';
-    document.getElementById('avg-rating').textContent = avg;
-    document.getElementById('review-count').textContent = count;
+    setCachedProduct(productId, product.data ? product.data() : product);
+    afterProductLoad();
+  } catch (err) {
+    console.error(err);
+    const cached = getCachedProduct(productId);
+    if (cached) {
+      product = { id: productId, ...cached };
+      afterProductLoad();
+    }
+  }
+}
+
+function afterProductLoad() {
+  loadReviewsData().then(() => {
     renderProduct();
     if (product.variants && product.variants.length > 0) {
       setupVariantSelector();
@@ -75,9 +104,24 @@ async function loadProduct() {
       updateControlsForStock(currentMaxStock);
     }
     updateCartUI();
-  } catch (err) {
-    console.error(err);
-  }
+  });
+}
+
+async function loadReviewsData() {
+  try {
+    const snapshot = await db.collection('reviews')
+      .where('productId', '==', productId)
+      .where('approved', '==', true)
+      .get();
+    let totalRating = 0, count = 0;
+    snapshot.forEach(doc => {
+      totalRating += doc.data().rating;
+      count++;
+    });
+    const avg = count > 0 ? (totalRating / count).toFixed(1) : '0.0';
+    document.getElementById('avg-rating').textContent = avg;
+    document.getElementById('review-count').textContent = count;
+  } catch (e) {}
 }
 
 function renderProduct() {
@@ -265,6 +309,7 @@ function setupAddToCart() {
 
 /* --- корзина (копия логики с главной) --- */
 function setupCart() {
+  updateCartUI();
   const modal = document.getElementById('cart-modal');
   const floatBtn = document.getElementById('cart-float-btn');
   const closeBtn = modal.querySelector('.close');
@@ -281,14 +326,14 @@ function setupCart() {
       alert('Корзина пуста');
       return;
     }
-    // Перенаправляем на главную для оформления заказа
     window.location.href = 'index.html?checkout=open';
   });
 }
 
 function updateCartUI() {
   const count = cart.reduce((sum, item) => sum + item.qty, 0);
-  document.getElementById('cart-count').textContent = count;
+  const badge = document.getElementById('cart-count');
+  if (badge) badge.textContent = count;
 }
 
 function renderCart() {
@@ -341,7 +386,6 @@ function handleCartAction(e) {
   if (!item) return;
 
   if (action === 'cart-increase') {
-    // здесь нет проверки остатка, т.к. на странице товара товар может быть изменён, но для простоты допустим
     item.qty += 1;
   } else if (action === 'cart-decrease') {
     if (item.qty > 1) {

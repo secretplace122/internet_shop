@@ -227,7 +227,7 @@
 /* Адаптивность с увеличенными отступами */
 @media (max-width: 768px) {
   .container {
-    padding: 0 20px;   /* боковые отступы */
+    padding: 0 20px;
   }
 
   .product-header {
