@@ -1,3 +1,4 @@
+// admin.js (обновлённый)
 document.addEventListener('DOMContentLoaded', () => {
   const auth = firebase.auth();
   const db = firebase.firestore();
@@ -147,7 +148,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (id) {
         await db.collection('products').doc(id).update(productData);
       } else {
-        await db.collection('products').add(productData);
+        const newId = await db.runTransaction(async (t) => {
+          const counterRef = db.collection('counters').doc('products');
+          const snap = await t.get(counterRef);
+          const current = snap.exists ? (snap.data().value || 0) : 0;
+          const next = current + 1;
+          t.set(counterRef, { value: next }, { merge: true });
+          return `item${next}`;
+        });
+        await db.collection('products').doc(newId).set(productData);
       }
       productModal.style.display = 'none';
       loadProducts();

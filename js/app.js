@@ -101,16 +101,23 @@ function renderProducts(products, reviewsData) {
     const currentQty = cartItem ? cartItem.qty : 0;
     const maxQty = activeVariantStock;
 
-    const cartControlsHtml = currentQty > 0 ? `
-      <div class="quantity-picker">
-        <button class="qty-btn" data-action="decrease" data-id="${p.id}">−</button>
-        <span class="qty-value">${currentQty}</span>
-        <button class="qty-btn" data-action="increase" data-id="${p.id}" ${currentQty >= maxQty ? 'disabled' : ''}>+</button>
-      </div>
-      <button class="go-to-cart" data-action="go-cart">🛒</button>
-    ` : `
-      <button class="add-to-cart" data-id="${p.id}" data-action="add">В корзину</button>
-    `;
+    let cartControlsHtml;
+    if (maxQty === 0) {
+      cartControlsHtml = '<span class="out-of-stock">Нет в наличии</span>';
+    } else if (currentQty > 0) {
+      cartControlsHtml = `
+        <div class="quantity-picker">
+          <button class="qty-btn" data-action="decrease" data-id="${p.id}">−</button>
+          <span class="qty-value">${currentQty}</span>
+          <button class="qty-btn" data-action="increase" data-id="${p.id}" ${currentQty >= maxQty ? 'disabled' : ''}>+</button>
+        </div>
+        <button class="go-to-cart" data-action="go-cart">🛒</button>
+      `;
+    } else {
+      cartControlsHtml = `
+        <button class="add-to-cart" data-id="${p.id}" data-action="add">В корзину</button>
+      `;
+    }
 
     return `
       <div class="product-card" data-id="${p.id}">
@@ -201,16 +208,22 @@ function updateCartControlsForCard(productId) {
     : cart.find(item => item.id === productId && !item.variant);
   const currentQty = cartItem ? cartItem.qty : 0;
 
-  controls.innerHTML = currentQty > 0 ? `
-    <div class="quantity-picker">
-      <button class="qty-btn" data-action="decrease" data-id="${productId}">−</button>
-      <span class="qty-value">${currentQty}</span>
-      <button class="qty-btn" data-action="increase" data-id="${productId}" ${currentQty >= max ? 'disabled' : ''}>+</button>
-    </div>
-    <button class="go-to-cart" data-action="go-cart">🛒</button>
-  ` : `
-    <button class="add-to-cart" data-id="${productId}" data-action="add">В корзину</button>
-  `;
+  if (max === 0) {
+    controls.innerHTML = '<span class="out-of-stock">Нет в наличии</span>';
+  } else if (currentQty > 0) {
+    controls.innerHTML = `
+      <div class="quantity-picker">
+        <button class="qty-btn" data-action="decrease" data-id="${productId}">−</button>
+        <span class="qty-value">${currentQty}</span>
+        <button class="qty-btn" data-action="increase" data-id="${productId}" ${currentQty >= max ? 'disabled' : ''}>+</button>
+      </div>
+      <button class="go-to-cart" data-action="go-cart">🛒</button>
+    `;
+  } else {
+    controls.innerHTML = `
+      <button class="add-to-cart" data-id="${productId}" data-action="add">В корзину</button>
+    `;
+  }
 
   controls.querySelectorAll('[data-action]').forEach(b => {
     b.addEventListener('click', (e) => {
@@ -228,12 +241,14 @@ function handleCartAction(e) {
   if (!product) return;
 
   const variant = getSelectedVariant(productId);
+  const maxStock = variant ? variant.stock : (product.stock || 0);
 
   if (action === 'add') {
+    if (maxStock <= 0) return;
     addToCart(product, 1, variant);
   } else if (action === 'increase') {
     const cartItem = cart.find(item => item.id === productId && item.variant?.value === variant?.value);
-    if (cartItem && cartItem.qty < (variant ? variant.stock : product.stock)) {
+    if (cartItem && cartItem.qty < maxStock) {
       addToCart(product, 1, variant);
     }
   } else if (action === 'decrease') {
@@ -258,12 +273,16 @@ function handleCartAction(e) {
 
 function addToCart(product, delta = 1, variant = null) {
   const existing = cart.find(item => item.id === product.id && item.variant?.value === variant?.value);
+  const maxStock = variant ? variant.stock : (product.stock || 0);
   if (existing) {
-    existing.qty += delta;
-    if (existing.qty <= 0) {
+    const newQty = existing.qty + delta;
+    if (newQty > maxStock) return;
+    if (newQty <= 0) {
       cart = cart.filter(item => !(item.id === product.id && item.variant?.value === variant?.value));
+    } else {
+      existing.qty = newQty;
     }
-  } else if (delta > 0) {
+  } else if (delta > 0 && maxStock >= delta) {
     cart.push({
       id: product.id,
       title: product.title,
