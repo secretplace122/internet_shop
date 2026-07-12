@@ -16,6 +16,7 @@
   <header class="product-header">
     <a href="index.html" class="back-link">← Назад</a>
   </header>
+
   <main class="product-main container">
     <div class="product-gallery" id="product-gallery">
       <div class="gallery-container">
@@ -50,6 +51,7 @@
       <div class="product-message" id="product-message"></div>
     </div>
   </main>
+
   <section class="reviews-section container">
     <h2>Отзывы</h2>
     <div class="review-form">
@@ -64,5 +66,22 @@
     </div>
     <div id="reviews-list"></div>
   </section>
+
+  <!-- Модальное окно корзины -->
+  <div class="modal" id="cart-modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Корзина</h2>
+      <div id="cart-items"></div>
+      <div class="cart-total"><strong>Итого: <span id="cart-total-price">0</span> ₽</strong></div>
+      <button id="checkout-btn" class="btn">Оформить заказ</button>
+    </div>
+  </div>
+
+  <!-- Плавающая кнопка корзины -->
+  <button class="cart-float-btn" id="cart-float-btn">
+    🛒
+    <span class="cart-count-badge" id="cart-count">0</span>
+  </button>
 </body>
 </html>
