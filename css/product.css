@@ -1,4 +1,4 @@
-/* product.css - обновлённый */
+/* product.css - обновлённый (с отступами) */
 .product-header {
   background: var(--white);
   border-bottom: 1px solid var(--border);
@@ -224,42 +224,66 @@
 .review-card .review-rating { color: #f6c23e; margin-bottom: 6px; }
 .review-card .review-text { color: var(--text-light); }
 
-/* Адаптивность */
+/* Адаптивность с увеличенными отступами */
 @media (max-width: 768px) {
+  .container {
+    padding: 0 20px;   /* боковые отступы */
+  }
+
+  .product-header {
+    padding: 12px 20px;
+  }
+
   .product-main {
     flex-direction: column;
     gap: 24px;
-    padding: 16px 0;
+    padding: 24px 0 40px;
   }
+
   .product-gallery,
   .product-details {
     max-width: 100%;
     flex: 1 1 100%;
   }
+
   .product-details {
-    padding: 20px 16px;
+    padding: 24px 20px;
     box-shadow: none;
     border-radius: 0;
     background: transparent;
   }
+
   .product-details h1 {
     font-size: 1.6rem;
   }
+
   .product-price {
     font-size: 1.6rem;
     margin: 12px 0;
   }
+
   .gallery-main-image {
     max-height: 320px;
   }
+
   .gallery-thumb {
     width: 52px;
     height: 52px;
   }
+
   .quantity-row {
     flex-wrap: wrap;
   }
+
   .add-to-cart-btn {
     width: 100%;
+  }
+
+  .reviews-section {
+    padding: 30px 0;
+  }
+
+  .review-form {
+    padding: 20px;
   }
 }
