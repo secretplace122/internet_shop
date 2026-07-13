@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await checkDataVersion();
   const urlParams = new URLSearchParams(window.location.search);
   const forceRefresh = urlParams.has('refresh');
-  await initProducts(forceRefresh);
+  await loadProductsFromFirestore(forceRefresh);
   setupCart();
   subscribeToProducts();
 });
@@ -28,128 +28,6 @@ async function checkDataVersion() {
   } catch (e) {
     console.warn('Version check failed, proceeding with cache');
   }
-}
-
-async function initProducts(forceRefresh = false) {
-  const container = document.getElementById('products-container');
-  if (!container) return;
-  if (!forceRefresh && container.children.length > 0 && container.querySelector('.product-card')) {
-    await hydrateStaticCards();
-    return;
-  }
-  await loadProductsFromFirestore(forceRefresh);
-}
-
-async function hydrateStaticCards() {
-  const snapshot = await db.collection('products').get();
-  const products = [];
-  snapshot.forEach(doc => products.push({ id: doc.id, ...doc.data() }));
-  currentProducts = products;
-  setCachedProducts(products);
-
-  const container = document.getElementById('products-container');
-  const cards = container.querySelectorAll('.product-card');
-  cards.forEach(card => {
-    const productId = card.dataset.id;
-    const product = products.find(p => p.id === productId);
-    if (!product) {
-      card.remove();
-      return;
-    }
-    card.querySelector('.card-gallery-scroll')?.addEventListener('click', (e) => {
-      if (!e.target.closest('button') && !e.target.closest('.variant-pill')) {
-        window.location.href = `products/${productId}/`;
-      }
-    });
-    updateStaticCardStock(card, product);
-    addCardListeners(card);
-  });
-  updateAllCartControls();
-}
-
-function updateStaticCardStock(card, product) {
-  let stockText = '';
-  const variantRow = card.querySelector('.variant-row');
-  if (product.variants && Array.isArray(product.variants) && product.variants.length > 0 && variantRow) {
-    const variant = product.variants[0];
-    const available = variant.options.find(o => o.stock > 0);
-    const defaultOption = available || variant.options[0];
-    stockText = `Осталось: ${defaultOption.stock} шт.`;
-    variantRow.innerHTML = variant.options.map(opt => {
-      const active = opt.value === defaultOption.value && opt.stock > 0 ? ' active' : '';
-      const disabled = opt.stock === 0 ? ' disabled' : '';
-      return `<span class="variant-pill${active}${disabled}" data-value="${opt.value}" data-stock="${opt.stock}">${opt.value}</span>`;
-    }).join('');
-  } else {
-    stockText = `Осталось: ${product.stock || 0} шт.`;
-  }
-
-  const stockEl = card.querySelector('.variant-stock') || card.querySelector('.stock-badge');
-  if (stockEl) stockEl.textContent = stockText;
-
-  const controls = card.querySelector('.cart-controls');
-  if (controls) {
-    controls.innerHTML = createCartControls(card, product);
-  }
-}
-
-function addCardListeners(card) {
-  card.addEventListener('click', (e) => {
-    if (e.target.closest('button') || e.target.closest('.variant-pill')) return;
-    window.location.href = `products/${card.dataset.id}/`;
-  });
-
-  card.querySelectorAll('.variant-pill:not(.disabled)').forEach(pill => {
-    pill.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const row = pill.parentElement;
-      row.querySelectorAll('.variant-pill').forEach(p => p.classList.remove('active'));
-      pill.classList.add('active');
-      const productId = card.dataset.id;
-      const stockEl = document.getElementById(`stock-${productId}`) || card.querySelector('.variant-stock, .stock-badge');
-      if (stockEl) {
-        stockEl.textContent = `Осталось: ${pill.dataset.stock} шт.`;
-      }
-      updateCartControlsForCard(productId);
-    });
-  });
-
-  card.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      handleCartAction(e);
-    });
-  });
-}
-
-function createCartControls(card, product) {
-  const variantRow = card.querySelector('.variant-row');
-  let maxStock = product.stock || 0;
-  let variantValue = null;
-  if (variantRow && product.variants?.length) {
-    const activePill = variantRow.querySelector('.variant-pill.active');
-    if (activePill) {
-      maxStock = parseInt(activePill.dataset.stock) || 0;
-      variantValue = activePill.dataset.value;
-    }
-  }
-  const cartItem = variantValue
-    ? cart.find(item => item.id === product.id && item.variant?.value === variantValue)
-    : cart.find(item => item.id === product.id && !item.variant);
-  const currentQty = cartItem ? cartItem.qty : 0;
-
-  if (maxStock === 0) return '<span class="out-of-stock">Нет в наличии</span>';
-  if (currentQty > 0) {
-    return `
-      <div class="quantity-picker">
-        <button class="qty-btn" data-action="decrease" data-id="${product.id}">−</button>
-        <span class="qty-value">${currentQty}</span>
-        <button class="qty-btn" data-action="increase" data-id="${product.id}" ${currentQty >= maxStock ? 'disabled' : ''}>+</button>
-      </div>
-      <button class="go-to-cart" data-action="go-cart">🛒</button>
-    `;
-  }
-  return `<button class="add-to-cart" data-id="${product.id}" data-action="add">В корзину</button>`;
 }
 
 async function loadProductsFromFirestore(forceRefresh = false) {
@@ -251,6 +129,65 @@ function renderProductsFromData(products) {
     }
     addCardListeners(card);
   });
+}
+
+function addCardListeners(card) {
+  card.addEventListener('click', (e) => {
+    if (e.target.closest('button') || e.target.closest('.variant-pill')) return;
+    window.location.href = `products/${card.dataset.id}/`;
+  });
+
+  card.querySelectorAll('.variant-pill:not(.disabled)').forEach(pill => {
+    pill.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const row = pill.parentElement;
+      row.querySelectorAll('.variant-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      const productId = card.dataset.id;
+      const stockEl = document.getElementById(`stock-${productId}`) || card.querySelector('.variant-stock, .stock-badge');
+      if (stockEl) {
+        stockEl.textContent = `Осталось: ${pill.dataset.stock} шт.`;
+      }
+      updateCartControlsForCard(productId);
+    });
+  });
+
+  card.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleCartAction(e);
+    });
+  });
+}
+
+function createCartControls(card, product) {
+  const variantRow = card.querySelector('.variant-row');
+  let maxStock = product.stock || 0;
+  let variantValue = null;
+  if (variantRow && product.variants?.length) {
+    const activePill = variantRow.querySelector('.variant-pill.active');
+    if (activePill) {
+      maxStock = parseInt(activePill.dataset.stock) || 0;
+      variantValue = activePill.dataset.value;
+    }
+  }
+  const cartItem = variantValue
+    ? cart.find(item => item.id === product.id && item.variant?.value === variantValue)
+    : cart.find(item => item.id === product.id && !item.variant);
+  const currentQty = cartItem ? cartItem.qty : 0;
+
+  if (maxStock === 0) return '<span class="out-of-stock">Нет в наличии</span>';
+  if (currentQty > 0) {
+    return `
+      <div class="quantity-picker">
+        <button class="qty-btn" data-action="decrease" data-id="${product.id}">−</button>
+        <span class="qty-value">${currentQty}</span>
+        <button class="qty-btn" data-action="increase" data-id="${product.id}" ${currentQty >= maxStock ? 'disabled' : ''}>+</button>
+      </div>
+      <button class="go-to-cart" data-action="go-cart">🛒</button>
+    `;
+  }
+  return `<button class="add-to-cart" data-id="${product.id}" data-action="add">В корзину</button>`;
 }
 
 function subscribeToProducts() {
