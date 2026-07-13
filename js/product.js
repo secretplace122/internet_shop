@@ -1,5 +1,5 @@
 const params = new URLSearchParams(window.location.search);
-const productId = params.get('id');
+const productId = window.PRODUCT_ID || params.get('id');
 
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
@@ -82,7 +82,7 @@ async function loadProduct() {
       return;
     }
     product = { id: doc.id, ...doc.data() };
-    setCachedProduct(productId, product.data ? product.data() : product);
+    setCachedProduct(productId, product);
     afterProductLoad();
   } catch (err) {
     console.error(err);
