@@ -1,4 +1,3 @@
-/* admin.css - обновлённая версия с адаптивностью */
 :root {
   --white: #ffffff;
   --light-bg: #f4f6fb;
@@ -73,6 +72,46 @@ body {
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border);
+}
+
+.deploy-panel {
+  background: #fff9e6;
+  border: 1px solid #ffe066;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin: 16px 30px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.deploy-panel p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #7c6a0a;
+  flex: 1;
+}
+.btn-deploy {
+  background: #ffd43b;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  color: #1a1a1a;
+}
+.btn-deploy:hover {
+  background: #fcc419;
+}
+.btn-deploy:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+#deploy-status {
+  font-size: 0.85rem;
+  color: #5a6577;
 }
 
 .admin-tabs {
@@ -231,6 +270,11 @@ body {
 .image-input-row { display: flex; align-items: center; gap: 5px; margin-top: 5px; }
 
 @media (max-width: 768px) {
+  .deploy-panel {
+    margin: 16px 20px 20px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
   .products-list table, .products-list thead, .products-list tbody, .products-list th, .products-list td, .products-list tr {
     display: block;
   }

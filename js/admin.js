@@ -1,4 +1,5 @@
-// admin.js (обновлённый)
+const API_URL = 'https://functions.yandexcloud.net/d4eengms62slq876jbka';
+
 document.addEventListener('DOMContentLoaded', () => {
   const auth = firebase.auth();
   const db = firebase.firestore();
@@ -39,6 +40,39 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
       if (btn.dataset.tab === 'orders') loadOrders();
     });
+  });
+
+  document.getElementById('deploy-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('deploy-btn');
+    const status = document.getElementById('deploy-status');
+    btn.disabled = true;
+    btn.textContent = '⏳ Обновляем...';
+    status.textContent = '';
+
+    try {
+      const response = await fetch(API_URL + '?path=/trigger-deploy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret: 'my-super-secret-2024' })
+      });
+
+      if (response.ok) {
+        status.textContent = '✅ Сайт обновляется! Через 1-2 минуты изменения появятся.';
+        btn.textContent = '✅ Готово';
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = '🚀 Обновить сайт';
+          status.textContent = '';
+        }, 5000);
+      } else {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Ошибка запуска');
+      }
+    } catch (err) {
+      status.textContent = '❌ Ошибка: ' + err.message;
+      btn.disabled = false;
+      btn.textContent = '🚀 Обновить сайт';
+    }
   });
 
   const productModal = document.getElementById('product-modal');
