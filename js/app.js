@@ -69,14 +69,13 @@ async function hydrateStaticCards() {
 
 function updateStaticCardStock(card, product) {
   let stockText = '';
-  let variantsHtml = '';
   const variantRow = card.querySelector('.variant-row');
-  if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+  if (product.variants && Array.isArray(product.variants) && product.variants.length > 0 && variantRow) {
     const variant = product.variants[0];
     const available = variant.options.find(o => o.stock > 0);
     const defaultOption = available || variant.options[0];
     stockText = `Осталось: ${defaultOption.stock} шт.`;
-    variantsHtml = variant.options.map(opt => {
+    variantRow.innerHTML = variant.options.map(opt => {
       const active = opt.value === defaultOption.value && opt.stock > 0 ? ' active' : '';
       const disabled = opt.stock === 0 ? ' disabled' : '';
       return `<span class="variant-pill${active}${disabled}" data-value="${opt.value}" data-stock="${opt.stock}">${opt.value}</span>`;
@@ -88,15 +87,9 @@ function updateStaticCardStock(card, product) {
   const stockEl = card.querySelector('.variant-stock') || card.querySelector('.stock-badge');
   if (stockEl) stockEl.textContent = stockText;
 
-  if (variantRow) {
-    variantRow.innerHTML = variantsHtml;
-  }
-
   const controls = card.querySelector('.cart-controls');
   if (controls) {
-    controls.innerHTML = '';
-    const cartControlsHtml = createCartControls(card, product);
-    controls.innerHTML = cartControlsHtml;
+    controls.innerHTML = createCartControls(card, product);
   }
 }
 
@@ -346,11 +339,11 @@ function createProductCardHtml(product) {
 }
 
 function updateProductCardFromData(card, product) {
-  let stockText = '';
   const variantRow = card.querySelector('.variant-row');
-  if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+  let stockText = '';
+  if (product.variants && Array.isArray(product.variants) && product.variants.length > 0 && variantRow) {
     const variant = product.variants[0];
-    const activePill = variantRow?.querySelector('.variant-pill.active');
+    const activePill = variantRow.querySelector('.variant-pill.active');
     const activeValue = activePill ? activePill.dataset.value : null;
     variantRow.innerHTML = variant.options.map(opt => {
       const isActive = opt.value === activeValue && opt.stock > 0;
