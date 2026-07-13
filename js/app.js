@@ -38,7 +38,8 @@ async function loadProductsFromFirestore(forceRefresh = false) {
     const cached = getCachedProducts();
     if (cached) {
       currentProducts = cached;
-      renderProductsFromData(cached);
+      const reviewsData = await fetchReviewsData(cached.map(p => p.id));
+      renderProductsFromData(cached, reviewsData);
       return;
     }
   }
@@ -49,20 +50,45 @@ async function loadProductsFromFirestore(forceRefresh = false) {
     snapshot.forEach(doc => products.push({ id: doc.id, ...doc.data() }));
     currentProducts = products;
     setCachedProducts(products);
-    renderProductsFromData(products);
+    const reviewsData = await fetchReviewsData(products.map(p => p.id));
+    renderProductsFromData(products, reviewsData);
   } catch (error) {
     console.warn('Ошибка загрузки:', error);
     const cached = getCachedProducts(true);
     if (cached) {
       currentProducts = cached;
-      renderProductsFromData(cached);
+      renderProductsFromData(cached, {});
     } else {
-      renderProductsFromData([]);
+      renderProductsFromData([], {});
     }
   }
 }
 
-function renderProductsFromData(products) {
+async function fetchReviewsData(productIds) {
+  if (!productIds.length) return {};
+  try {
+    const snapshot = await db.collection('reviews')
+      .where('productId', 'in', productIds)
+      .where('approved', '==', true)
+      .get();
+    const data = {};
+    snapshot.forEach(doc => {
+      const r = doc.data();
+      if (!data[r.productId]) data[r.productId] = { total: 0, count: 0 };
+      data[r.productId].total += r.rating;
+      data[r.productId].count += 1;
+    });
+    const result = {};
+    for (const [id, val] of Object.entries(data)) {
+      result[id] = { avg: (val.total / val.count).toFixed(1), count: val.count };
+    }
+    return result;
+  } catch (e) {
+    return {};
+  }
+}
+
+function renderProductsFromData(products, reviewsData) {
   const container = document.getElementById('products-container');
   if (!container) return;
   if (products.length === 0) {
@@ -79,6 +105,7 @@ function renderProductsFromData(products) {
         </div>
         ${badgeHtml}
       </div>`;
+    const rev = reviewsData[p.id] || { avg: '0.0', count: 0 };
     let variantsHtml = '';
     let variantStockHtml = '';
     if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
@@ -106,10 +133,10 @@ function renderProductsFromData(products) {
           <p class="description">${p.description}</p>
           <div class="rating-row">
             <span class="rating-star">★</span>
-            <span class="rating-value">0.0</span>
+            <span class="rating-value">${rev.avg}</span>
             <span class="review-icon">
               <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-              0
+              ${rev.count}
             </span>
           </div>
           ${variantStockHtml}
