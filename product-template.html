@@ -48,12 +48,12 @@
       </div>
       <div class="stock-info" id="stock-info">{{stockInfo}}</div>
       <div class="quantity-row">
-        <div class="quantity-picker">
+        <div class="quantity-picker" id="quantity-picker" style="display: none;">
           <button class="qty-btn" id="qty-decrease">−</button>
-          <span class="qty-value" id="qty-value">1</span>
+          <span class="qty-value" id="qty-value">0</span>
           <button class="qty-btn" id="qty-increase">+</button>
         </div>
-        <button class="btn add-to-cart-btn" id="add-to-cart-btn">В корзину</button>
+        <button class="go-to-cart" id="go-to-cart-btn" style="display: none;">🛒</button>
       </div>
       <div class="product-message" id="product-message"></div>
     </div>
