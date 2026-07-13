@@ -7,12 +7,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   await checkDataVersion();
   const urlParams = new URLSearchParams(window.location.search);
   const forceRefresh = urlParams.has('refresh');
-  loadProducts(forceRefresh);
+  await loadProducts(forceRefresh);
   setupCart();
+  subscribeToProducts();
 });
 
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
 let currentProducts = [];
+let unsubscribeProducts = null;
 
 async function checkDataVersion() {
   try {
@@ -30,7 +32,7 @@ async function checkDataVersion() {
 
 async function loadProducts(forceRefresh = false) {
   const container = document.getElementById('products-container');
-  container.innerHTML = '<p>Загрузка товаров…</p>';
+  if (!container) return;
 
   if (!forceRefresh) {
     const cached = getCachedProducts();
@@ -64,6 +66,167 @@ async function loadProducts(forceRefresh = false) {
       renderProducts([], {});
     }
   }
+}
+
+function subscribeToProducts() {
+  if (unsubscribeProducts) unsubscribeProducts();
+  unsubscribeProducts = db.collection('products').onSnapshot(async (snapshot) => {
+    const products = [];
+    snapshot.forEach(doc => products.push({ id: doc.id, ...doc.data() }));
+    setCachedProducts(products);
+    const oldProductsMap = new Map(currentProducts.map(p => [p.id, p]));
+    currentProducts = products;
+    const newIds = new Set(products.map(p => p.id));
+    const container = document.getElementById('products-container');
+    if (!container) return;
+    // Удаляем карточки, которых больше нет
+    container.querySelectorAll('.product-card').forEach(card => {
+      if (!newIds.has(card.dataset.id)) card.remove();
+    });
+    // Добавляем/обновляем карточки
+    const reviewsData = await fetchReviewsData(products.map(p => p.id));
+    for (const product of products) {
+      const existingCard = container.querySelector(`.product-card[data-id="${product.id}"]`);
+      if (!existingCard) {
+        // новый товар — добавим в конец
+        const cardHtml = createProductCardHtml(product, reviewsData);
+        const temp = document.createElement('div');
+        temp.innerHTML = cardHtml;
+        const newCard = temp.firstElementChild;
+        container.appendChild(newCard);
+      } else {
+        updateProductCardElements(existingCard, product, reviewsData);
+      }
+    }
+    // Обновим контролы корзины для всех карточек
+    updateAllCartControls();
+    if (document.getElementById('cart-modal').style.display === 'flex') {
+      renderCart();
+    }
+  }, (error) => {
+    console.error('Ошибка подписки на товары:', error);
+  });
+}
+
+function createProductCardHtml(product, reviewsData) {
+  const rev = reviewsData[product.id] || { avg: '0', count: 0 };
+  const badgeHtml = product.badge ? `<span class="badge" style="background:${product.badge.bgColor};color:${product.badge.color}">${product.badge.text}</span>` : '';
+  const images = (product.images && product.images.length) ? product.images : [product.image];
+  const galleryHtml = `
+    <div class="card-gallery">
+      <div class="card-gallery-scroll">
+        ${images.map(url => `<img src="${url}" alt="${product.title}" loading="lazy">`).join('')}
+      </div>
+      ${badgeHtml}
+    </div>`;
+  let variantsHtml = '';
+  let variantStockHtml = '';
+  let activeVariantValue = null;
+  let activeVariantStock = product.stock || 0;
+  if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+    const firstVariant = product.variants[0];
+    const available = firstVariant.options.find(o => o.stock > 0);
+    const defaultOption = available || firstVariant.options[0];
+    variantsHtml = `
+      <div class="variant-row" data-variant-name="${firstVariant.name}">
+        ${firstVariant.options.map(opt => `
+          <span class="variant-pill${opt.stock === 0 ? ' disabled' : ''}${opt.value === defaultOption.value ? ' active' : ''}"
+                data-value="${opt.value}" data-stock="${opt.stock}">
+            ${opt.value}
+          </span>
+        `).join('')}
+      </div>`;
+    variantStockHtml = `<span class="variant-stock" id="stock-${product.id}">Осталось: ${defaultOption.stock} шт.</span>`;
+    activeVariantValue = defaultOption.value;
+    activeVariantStock = defaultOption.stock;
+  } else {
+    variantStockHtml = `<span class="stock-badge">Осталось: ${product.stock || 0} шт.</span>`;
+  }
+  const cartItem = cart.find(item => item.id === product.id && item.variant?.value === activeVariantValue);
+  const currentQty = cartItem ? cartItem.qty : 0;
+  const maxQty = activeVariantStock;
+  let cartControlsHtml;
+  if (maxQty === 0) {
+    cartControlsHtml = '<span class="out-of-stock">Нет в наличии</span>';
+  } else if (currentQty > 0) {
+    cartControlsHtml = `
+      <div class="quantity-picker">
+        <button class="qty-btn" data-action="decrease" data-id="${product.id}">−</button>
+        <span class="qty-value">${currentQty}</span>
+        <button class="qty-btn" data-action="increase" data-id="${product.id}" ${currentQty >= maxQty ? 'disabled' : ''}>+</button>
+      </div>
+      <button class="go-to-cart" data-action="go-cart">🛒</button>
+    `;
+  } else {
+    cartControlsHtml = `<button class="add-to-cart" data-id="${product.id}" data-action="add">В корзину</button>`;
+  }
+  return `
+    <div class="product-card" data-id="${product.id}">
+      ${galleryHtml}
+      <div class="product-info">
+        <h3>${product.title}</h3>
+        <p class="description">${product.description}</p>
+        <div class="rating-row">
+          <span class="rating-star">★</span>
+          <span class="rating-value">${rev.avg}</span>
+          <span class="review-icon">
+            <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            ${rev.count}
+          </span>
+        </div>
+        ${variantStockHtml}
+        ${variantsHtml}
+        <div class="price">${product.price.toLocaleString()} ₽</div>
+        <div class="cart-controls" id="controls-${product.id}">
+          ${cartControlsHtml}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function updateProductCardElements(card, product, reviewsData) {
+  // обновляем только динамические части
+  const rev = reviewsData[product.id] || { avg: '0', count: 0 };
+  // рейтинг
+  const ratingRow = card.querySelector('.rating-row');
+  if (ratingRow) {
+    ratingRow.querySelector('.rating-value').textContent = rev.avg;
+    const reviewIcon = ratingRow.querySelector('.review-icon');
+    if (reviewIcon) {
+      reviewIcon.innerHTML = `<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>${rev.count}`;
+    }
+  }
+  // сток и варианты
+  if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+    const firstVariant = product.variants[0];
+    // обновляем stock-текст
+    const stockEl = card.querySelector(`#stock-${product.id}`);
+    const variantRow = card.querySelector('.variant-row');
+    if (variantRow) {
+      // сохраняем активный вариант
+      const activePill = variantRow.querySelector('.variant-pill.active');
+      const activeValue = activePill ? activePill.dataset.value : null;
+      variantRow.innerHTML = firstVariant.options.map(opt => {
+        const isActive = opt.value === activeValue && opt.stock > 0;
+        return `<span class="variant-pill${opt.stock === 0 ? ' disabled' : ''}${isActive ? ' active' : ''}"
+                     data-value="${opt.value}" data-stock="${opt.stock}">${opt.value}</span>`;
+      }).join('');
+      // если активного варианта больше нет или он недоступен, выберем первый доступный
+      if (!variantRow.querySelector('.variant-pill.active')) {
+        const firstAvailable = variantRow.querySelector('.variant-pill:not(.disabled)');
+        if (firstAvailable) firstAvailable.classList.add('active');
+      }
+      const newActive = variantRow.querySelector('.variant-pill.active');
+      const newStock = newActive ? parseInt(newActive.dataset.stock) : 0;
+      if (stockEl) stockEl.textContent = `Осталось: ${newStock} шт.`;
+    }
+  } else {
+    const stockBadge = card.querySelector('.stock-badge');
+    if (stockBadge) stockBadge.textContent = `Осталось: ${product.stock || 0} шт.`;
+  }
+  // обновим кнопки корзины
+  updateCartControlsForCard(product.id);
 }
 
 function getCachedProducts(ignoreExpiry = false) {
@@ -114,125 +277,42 @@ async function fetchReviewsData(productIds) {
 
 function renderProducts(products, reviewsData) {
   const container = document.getElementById('products-container');
+  if (!container) return;
   if (products.length === 0) {
     container.innerHTML = '<p>Товаров пока нет.</p>';
     return;
   }
-
-  container.innerHTML = products.map(p => {
-    const badgeHtml = p.badge ? `<span class="badge" style="background:${p.badge.bgColor};color:${p.badge.color}">${p.badge.text}</span>` : '';
-    const images = (p.images && p.images.length) ? p.images : [p.image];
-    const galleryHtml = `
-      <div class="card-gallery">
-        <div class="card-gallery-scroll">
-          ${images.map(url => `<img src="${url}" alt="${p.title}" loading="lazy">`).join('')}
-        </div>
-        ${badgeHtml}
-      </div>`;
-
-    const rev = reviewsData[p.id] || { avg: '0', count: 0 };
-
-    let variantsHtml = '';
-    let variantStockHtml = '';
-    let activeVariantValue = null;
-    let activeVariantStock = p.stock || 0;
-
-    if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
-      const firstVariant = p.variants[0];
-      const available = firstVariant.options.find(o => o.stock > 0);
-      const defaultOption = available || firstVariant.options[0];
-      variantsHtml = `
-        <div class="variant-row" data-variant-name="${firstVariant.name}">
-          ${firstVariant.options.map(opt => `
-            <span class="variant-pill${opt.stock === 0 ? ' disabled' : ''}${opt.value === defaultOption.value ? ' active' : ''}"
-                  data-value="${opt.value}" data-stock="${opt.stock}">
-              ${opt.value}
-            </span>
-          `).join('')}
-        </div>`;
-      variantStockHtml = `<span class="variant-stock" id="stock-${p.id}">Осталось: ${defaultOption.stock} шт.</span>`;
-      activeVariantValue = defaultOption.value;
-      activeVariantStock = defaultOption.stock;
-    } else {
-      variantStockHtml = `<span class="stock-badge">Осталось: ${p.stock || 0} шт.</span>`;
-    }
-
-    const cartItem = cart.find(item => item.id === p.id && item.variant?.value === activeVariantValue);
-    const currentQty = cartItem ? cartItem.qty : 0;
-    const maxQty = activeVariantStock;
-
-    let cartControlsHtml;
-    if (maxQty === 0) {
-      cartControlsHtml = '<span class="out-of-stock">Нет в наличии</span>';
-    } else if (currentQty > 0) {
-      cartControlsHtml = `
-        <div class="quantity-picker">
-          <button class="qty-btn" data-action="decrease" data-id="${p.id}">−</button>
-          <span class="qty-value">${currentQty}</span>
-          <button class="qty-btn" data-action="increase" data-id="${p.id}" ${currentQty >= maxQty ? 'disabled' : ''}>+</button>
-        </div>
-        <button class="go-to-cart" data-action="go-cart">🛒</button>
-      `;
-    } else {
-      cartControlsHtml = `
-        <button class="add-to-cart" data-id="${p.id}" data-action="add">В корзину</button>
-      `;
-    }
-
-    return `
-      <div class="product-card" data-id="${p.id}">
-        ${galleryHtml}
-        <div class="product-info">
-          <h3>${p.title}</h3>
-          <p class="description">${p.description}</p>
-          <div class="rating-row">
-            <span class="rating-star">★</span>
-            <span class="rating-value">${rev.avg}</span>
-            <span class="review-icon">
-              <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-              ${rev.count}
-            </span>
-          </div>
-          ${variantStockHtml}
-          ${variantsHtml}
-          <div class="price">${p.price.toLocaleString()} ₽</div>
-          <div class="cart-controls" id="controls-${p.id}">
-            ${cartControlsHtml}
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  container.querySelectorAll('.product-card').forEach(card => {
-    card.addEventListener('click', (e) => {
-      if (e.target.closest('button') || e.target.closest('.variant-pill')) return;
-      window.location.href = `products/${card.dataset.id}/`;
-    });
-  });
-
-  container.querySelectorAll('.variant-pill:not(.disabled)').forEach(pill => {
-    pill.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const row = pill.parentElement;
-      row.querySelectorAll('.variant-pill').forEach(p => p.classList.remove('active'));
-      pill.classList.add('active');
-      const productId = pill.closest('.product-card').dataset.id;
-      const stockEl = document.getElementById(`stock-${productId}`);
-      if (stockEl) {
-        stockEl.textContent = `Осталось: ${pill.dataset.stock} шт.`;
-      }
-      updateCartControlsForCard(productId);
-    });
-  });
-
-  container.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      handleCartAction(e);
-    });
-  });
+  container.innerHTML = products.map(p => createProductCardHtml(p, reviewsData)).join('');
 }
+
+// Делегирование событий
+document.addEventListener('click', function(e) {
+  const target = e.target;
+  // переход на страницу товара при клике на карточку (не по кнопкам/вариантам)
+  if (target.closest('.product-card') && !target.closest('button') && !target.closest('.variant-pill')) {
+    const card = target.closest('.product-card');
+    window.location.href = `products/${card.dataset.id}/`;
+  }
+  // клик по вариант-пиллу
+  if (target.classList.contains('variant-pill') && !target.classList.contains('disabled')) {
+    e.stopPropagation();
+    const row = target.parentElement;
+    row.querySelectorAll('.variant-pill').forEach(p => p.classList.remove('active'));
+    target.classList.add('active');
+    const productId = target.closest('.product-card').dataset.id;
+    const stockEl = document.getElementById(`stock-${productId}`);
+    if (stockEl) {
+      stockEl.textContent = `Осталось: ${target.dataset.stock} шт.`;
+    }
+    updateCartControlsForCard(productId);
+  }
+  // действия с корзиной внутри карточки
+  const actionBtn = target.closest('[data-action]');
+  if (actionBtn && actionBtn.closest('.product-card')) {
+    e.stopPropagation();
+    handleCartAction(e);
+  }
+});
 
 function getSelectedVariant(productId) {
   const card = document.querySelector(`.product-card[data-id="${productId}"]`);
@@ -247,6 +327,7 @@ function updateCartControlsForCard(productId) {
   const card = document.querySelector(`.product-card[data-id="${productId}"]`);
   if (!card) return;
   const controls = card.querySelector('.cart-controls');
+  if (!controls) return;
   const product = currentProducts.find(p => p.id === productId);
   if (!product) return;
 
@@ -284,13 +365,6 @@ function updateCartControlsForCard(productId) {
       <button class="add-to-cart" data-id="${productId}" data-action="add">В корзину</button>
     `;
   }
-
-  controls.querySelectorAll('[data-action]').forEach(b => {
-    b.addEventListener('click', (e) => {
-      e.stopPropagation();
-      handleCartAction(e);
-    });
-  });
 }
 
 function handleCartAction(e) {

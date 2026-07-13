@@ -15,12 +15,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupCart();
   loadReviews();
   document.getElementById('submit-review').addEventListener('click', submitReview);
+  subscribeToProduct();
 });
 
 let product = null;
 let selectedVariant = null;
 let selectedRating = 0;
 let currentMaxStock = 0;
+let unsubscribeProduct = null;
 
 document.querySelectorAll('#star-rating span').forEach(star => {
   star.addEventListener('click', function() {
@@ -111,6 +113,81 @@ async function loadProduct() {
       product = { id: productId, ...cached };
       afterProductLoad();
     }
+  }
+}
+
+function subscribeToProduct() {
+  if (unsubscribeProduct) unsubscribeProduct();
+  unsubscribeProduct = db.collection('products').doc(productId)
+    .onSnapshot((doc) => {
+      if (doc.exists) {
+        const newData = doc.data();
+        setCachedProduct(productId, newData);
+        product = { id: productId, ...newData };
+        updateProductStockAndVariants();
+        loadReviewsData();
+      } else {
+        document.body.innerHTML = 'Товар больше не доступен';
+      }
+    }, (err) => {
+      console.error('Ошибка подписки на товар:', err);
+    });
+}
+
+window.addEventListener('beforeunload', () => {
+  if (unsubscribeProduct) unsubscribeProduct();
+});
+
+function updateProductStockAndVariants() {
+  if (!product) return;
+  const container = document.getElementById('variant-pills');
+  const stockInfo = document.getElementById('stock-info');
+  if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+    const variant = product.variants[0];
+    const options = variant.options;
+    // сохраняем текущий выбор, если он еще валиден
+    const activeValue = selectedVariant && options.some(o => o.value === selectedVariant.value && o.stock > 0)
+      ? selectedVariant.value
+      : (options.find(o => o.stock > 0) || options[0])?.value;
+    if (container) {
+      container.innerHTML = options.map(opt =>
+        `<span class="variant-pill${opt.value === activeValue ? ' active' : ''}${opt.stock === 0 ? ' disabled' : ''}"
+               data-value="${opt.value}" data-stock="${opt.stock}">
+           ${opt.value}
+         </span>`
+      ).join('');
+    }
+    const activeOption = options.find(o => o.value === activeValue);
+    if (activeOption) {
+      selectedVariant = { name: variant.name, value: activeOption.value };
+      currentMaxStock = activeOption.stock;
+      if (stockInfo) stockInfo.textContent = `Доступно: ${activeOption.stock} шт.`;
+      updateControlsForStock(activeOption.stock);
+    } else {
+      selectedVariant = null;
+      currentMaxStock = 0;
+      if (stockInfo) stockInfo.textContent = 'Нет в наличии';
+      updateControlsForStock(0);
+    }
+    // перепривяжем обработчики вариант-пиллов
+    if (container) {
+      container.querySelectorAll('.variant-pill:not(.disabled)').forEach(pill => {
+        pill.addEventListener('click', () => {
+          container.querySelectorAll('.variant-pill').forEach(p => p.classList.remove('active'));
+          pill.classList.add('active');
+          const value = pill.dataset.value;
+          const stock = parseInt(pill.dataset.stock);
+          selectedVariant = { name: variant.name, value };
+          currentMaxStock = stock;
+          if (stockInfo) stockInfo.textContent = `Доступно: ${stock} шт.`;
+          updateControlsForStock(stock);
+        });
+      });
+    }
+  } else {
+    currentMaxStock = product.stock || 0;
+    if (stockInfo) stockInfo.textContent = `Осталось: ${currentMaxStock} шт.`;
+    updateControlsForStock(currentMaxStock);
   }
 }
 
