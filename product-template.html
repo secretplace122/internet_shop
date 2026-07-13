@@ -5,17 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{title}} – Магазин</title>
   <meta name="description" content="{{description}}">
+  <base href="/internet_shop/">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css">
-  <link rel="stylesheet" href="/css/product.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/product.css">
+  <script>window.PRODUCT_ID = '{{productId}}';</script>
   <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <script defer src="/js/firebase-config.js"></script>
-  <script defer src="/js/product.js"></script>
+  <script defer src="js/firebase-config.js"></script>
+  <script defer src="js/product.js"></script>
 </head>
 <body>
   <header class="product-header">
-    <a href="/index.html" class="back-link">← Назад</a>
+    <a href="index.html" class="back-link">← Назад</a>
   </header>
 
   <main class="product-main container">

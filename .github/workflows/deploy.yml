@@ -37,5 +37,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-          git add public/products/
+          git add products/
           git diff --staged --quiet || (git commit -m "Auto-generate product pages [skip ci]" && git push)

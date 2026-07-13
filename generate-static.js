@@ -2,7 +2,6 @@ const admin = require('firebase-admin');
 const fs = require('fs-extra');
 const path = require('path');
 
-// Инициализация Firebase Admin из переменной окружения
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
@@ -27,17 +26,18 @@ async function generate() {
   const products = [];
   snapshot.forEach(doc => products.push({ id: doc.id, ...doc.data() }));
 
+  // Очищаем папку products перед генерацией
+  await fs.emptyDir('products');
+
   for (const product of products) {
     const { avg, count } = await getAverageRating(product.id);
     const mainImage = (product.images && product.images.length) ? product.images[0] : product.image;
     const images = product.images && product.images.length ? product.images : [product.image];
 
-    // Галерея миниатюр
     const thumbsHtml = images.map((url, idx) =>
       `<img src="${url}" class="gallery-thumb${idx === 0 ? ' active' : ''}" data-index="${idx}" loading="lazy">`
     ).join('');
 
-    // Варианты
     let variantsHtml = '';
     let stockInfo = '';
     if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
@@ -56,7 +56,6 @@ async function generate() {
       stockInfo = `Осталось: ${product.stock || 0} шт.`;
     }
 
-    // Заполняем шаблон
     let html = template
       .replace(/{{title}}/g, product.title)
       .replace(/{{description}}/g, product.description)
@@ -67,19 +66,13 @@ async function generate() {
       .replace(/{{stockInfo}}/g, stockInfo)
       .replace(/{{avgRating}}/g, avg)
       .replace(/{{reviewCount}}/g, count.toString())
-      // ID товара для product.js (если ему нужно знать, какой товар загружен)
-      .replace('const productId = params.get(\'id\');', `const productId = '${product.id}';`);
+      .replace(/{{productId}}/g, product.id);
 
-    // Сохраняем страницу
-    const outDir = path.join('public', 'products', product.id);
+    const outDir = path.join('products', product.id);
     await fs.ensureDir(outDir);
     await fs.writeFile(path.join(outDir, 'index.html'), html);
     console.log(`Generated: products/${product.id}/`);
   }
-
-  // Копируем главную страницу и другие файлы, если нужно
-  // Предположим, что index.html, css, js уже лежат в public (или копируются отдельно)
-  // Здесь мы просто генерируем товары, основная структура остаётся как есть
 }
 
 generate().catch(console.error);
