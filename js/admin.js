@@ -192,6 +192,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         await db.collection('products').doc(newId).set(productData);
       }
+      await db.collection('counters').doc('dataVersion').set({
+        version: firebase.firestore.FieldValue.increment(1)
+      }, { merge: true });
       productModal.style.display = 'none';
       loadProducts();
     } catch (err) {
@@ -236,6 +239,9 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', async () => {
           if (confirm('Удалить товар?')) {
             await db.collection('products').doc(btn.dataset.id).delete();
+            await db.collection('counters').doc('dataVersion').set({
+              version: firebase.firestore.FieldValue.increment(1)
+            }, { merge: true });
             loadProducts();
           }
         });

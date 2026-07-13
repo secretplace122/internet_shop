@@ -1,14 +1,32 @@
 const API_URL = 'https://functions.yandexcloud.net/d4eengms62slq876jbka';
 const CACHE_KEY = 'productsCache';
-const CACHE_TTL = 5 * 60 * 1000; // 5 минут
+const CACHE_TTL = 5 * 60 * 1000;
+const VERSION_KEY = 'dataVersion';
 
-document.addEventListener('DOMContentLoaded', () => {
-  loadProducts();
+document.addEventListener('DOMContentLoaded', async () => {
+  await checkDataVersion();
+  const urlParams = new URLSearchParams(window.location.search);
+  const forceRefresh = urlParams.has('refresh');
+  loadProducts(forceRefresh);
   setupCart();
 });
 
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
 let currentProducts = [];
+
+async function checkDataVersion() {
+  try {
+    const remoteVersionDoc = await db.collection('counters').doc('dataVersion').get();
+    const remoteVersion = remoteVersionDoc.exists ? remoteVersionDoc.data().version : 0;
+    const localVersion = parseInt(localStorage.getItem(VERSION_KEY)) || 0;
+    if (remoteVersion !== localVersion) {
+      clearProductsCache();
+      localStorage.setItem(VERSION_KEY, remoteVersion);
+    }
+  } catch (e) {
+    console.warn('Version check failed, proceeding with cache');
+  }
+}
 
 async function loadProducts(forceRefresh = false) {
   const container = document.getElementById('products-container');

@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.body.innerHTML = 'Товар не указан';
     return;
   }
+  await checkDataVersion();
   await loadProduct();
   setupGallery();
   setupAddToCart();
@@ -21,7 +22,6 @@ let selectedVariant = null;
 let selectedRating = 0;
 let currentMaxStock = 0;
 
-/* --- star rating --- */
 document.querySelectorAll('#star-rating span').forEach(star => {
   star.addEventListener('click', function() {
     selectedRating = parseInt(this.dataset.rating);
@@ -45,9 +45,30 @@ function updateStars() {
   });
 }
 
-/* --- кеширование товара --- */
 const PRODUCT_CACHE_PREFIX = 'productCache_';
 const PRODUCT_CACHE_TTL = 5 * 60 * 1000;
+const VERSION_KEY = 'dataVersion';
+
+async function checkDataVersion() {
+  try {
+    const remoteVersionDoc = await db.collection('counters').doc('dataVersion').get();
+    const remoteVersion = remoteVersionDoc.exists ? remoteVersionDoc.data().version : 0;
+    const localVersion = parseInt(localStorage.getItem(VERSION_KEY)) || 0;
+    if (remoteVersion !== localVersion) {
+      localStorage.setItem(VERSION_KEY, remoteVersion);
+      clearAllProductCaches();
+    }
+  } catch (e) {}
+}
+
+function clearAllProductCaches() {
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const key = localStorage.key(i);
+    if (key.startsWith(PRODUCT_CACHE_PREFIX)) {
+      localStorage.removeItem(key);
+    }
+  }
+}
 
 function getCachedProduct(id) {
   try {
@@ -66,7 +87,6 @@ function setCachedProduct(id, product) {
   localStorage.setItem(PRODUCT_CACHE_PREFIX + id, JSON.stringify(cache));
 }
 
-/* --- загрузка товара --- */
 async function loadProduct() {
   try {
     const cached = getCachedProduct(productId);
@@ -307,7 +327,6 @@ function setupAddToCart() {
   });
 }
 
-/* --- корзина (копия логики с главной) --- */
 function setupCart() {
   updateCartUI();
   const modal = document.getElementById('cart-modal');
@@ -326,6 +345,7 @@ function setupCart() {
       alert('Корзина пуста');
       return;
     }
+    localStorage.removeItem(PRODUCT_CACHE_PREFIX + productId);
     window.location.href = 'index.html?checkout=open';
   });
 }
@@ -401,7 +421,6 @@ function handleCartAction(e) {
   renderCart();
 }
 
-/* --- отзывы --- */
 async function loadReviews() {
   const container = document.getElementById('reviews-list');
   try {
