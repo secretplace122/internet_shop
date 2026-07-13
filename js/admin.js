@@ -1,4 +1,5 @@
 const API_URL = 'https://functions.yandexcloud.net/d4eengms62slq876jbka';
+const IMAGE_UPLOAD_URL = 'https://script.google.com/macros/s/AKfycbypsp9iwbVfno00TFhWivQiDgB_OSJ5lfCWhH9Jt5QZnVQQZQNwV4R-5D8c3NyrWwux-Q/exec';
 
 document.addEventListener('DOMContentLoaded', () => {
   const auth = firebase.auth();
@@ -89,22 +90,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('badge-settings').style.display = e.target.checked ? 'block' : 'none';
   });
 
-  document.getElementById('add-image-btn').addEventListener('click', () => {
-    const container = document.getElementById('additional-images-container');
-    const div = document.createElement('div');
-    div.className = 'image-input-row';
-    div.innerHTML = '<input type="url" class="product-image-extra" placeholder="URL изображения" style="width:80%; margin-right:5px;"><button type="button" class="btn-sm danger remove-image-btn">🗑</button>';
-    container.appendChild(div);
-    div.querySelector('.remove-image-btn').addEventListener('click', () => div.remove());
-  });
-
   function updateTotalStock() {
     const stocks = document.querySelectorAll('.variant-stock');
-    let total = 0;
-    stocks.forEach(input => total += parseInt(input.value) || 0);
     const totalStockField = document.getElementById('product-stock');
-    totalStockField.value = total;
-    totalStockField.disabled = stocks.length > 0;
+    if (stocks.length > 0) {
+      let total = 0;
+      stocks.forEach(input => total += parseInt(input.value) || 0);
+      totalStockField.value = total;
+      totalStockField.disabled = true;
+    } else {
+      totalStockField.disabled = false;
+    }
   }
 
   document.getElementById('add-variant-btn').addEventListener('click', () => {
@@ -152,11 +148,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     let variants = null;
-    let stock = parseInt(document.getElementById('product-stock').value) || 0;
+    let stock = 0;
 
     if (options.length > 0) {
       variants = [{ name: 'Размер', options }];
-      stock = 0;
+    } else {
+      stock = parseInt(document.getElementById('product-stock').value) || 0;
     }
 
     const productData = {
@@ -165,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
       price: parseInt(document.getElementById('product-price').value),
       stock: stock,
       image: mainImage,
-      images: images.length ? images : [mainImage],
+      images: images,
       variants: variants,
       badge: null
     };
@@ -226,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       container.innerHTML = '<table><thead><tr><th>Фото</th><th>Название</th><th>Цена</th><th>Остаток</th><th>Бирка</th><th>Действия</th></tr></thead><tbody>' +
-        products.map(p => '<tr><td data-label="Фото"><img src="' + (p.images && p.images.length ? p.images[0] : p.image) + '" alt="' + p.title + '"></td><td data-label="Название">' + p.title + '</td><td data-label="Цена">' + p.price.toLocaleString() + ' ₽</td><td data-label="Остаток">' + p.totalStock + '</td><td data-label="Бирка">' + (p.badge ? '<span class="badge-preview" style="background:' + p.badge.bgColor + ';color:' + p.badge.color + '">' + p.badge.text + '</span>' : '—') + '</td><td data-label="Действия" class="actions"><button class="btn-sm edit" data-id="' + p.id + '">✏️</button><button class="btn-sm danger delete" data-id="' + p.id + '">🗑</button></td></tr>').join('') +
+        products.map(p => '<tr><td data-label="Фото"><img src="' + p.image + '" alt="' + p.title + '"></td><td data-label="Название">' + p.title + '</td><td data-label="Цена">' + p.price.toLocaleString() + ' ₽</td><td data-label="Остаток">' + p.totalStock + '</td><td data-label="Бирка">' + (p.badge ? '<span class="badge-preview" style="background:' + p.badge.bgColor + ';color:' + p.badge.color + '">' + p.badge.text + '</span>' : '—') + '</td><td data-label="Действия" class="actions"><button class="btn-sm edit" data-id="' + p.id + '">✏️</button><button class="btn-sm danger delete" data-id="' + p.id + '">🗑</button></td></tr>').join('') +
         '</tbody></table>';
 
       container.querySelectorAll('.edit').forEach(btn => {
@@ -257,19 +254,20 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('product-title').value = product.title;
     document.getElementById('product-description').value = product.description;
     document.getElementById('product-price').value = product.price;
-    document.getElementById('product-stock').value = product.stock || 0;
     document.getElementById('product-image').value = product.image;
 
     document.getElementById('additional-images-container').innerHTML = '';
     document.getElementById('variants-list').innerHTML = '';
 
-    if (product.images && product.images.length) {
+    if (product.images && Array.isArray(product.images)) {
       product.images.forEach(url => {
-        const div = document.createElement('div');
-        div.className = 'image-input-row';
-        div.innerHTML = '<input type="url" class="product-image-extra" value="' + url + '" style="width:80%;"><button type="button" class="btn-sm danger remove-image-btn">🗑</button>';
-        document.getElementById('additional-images-container').appendChild(div);
-        div.querySelector('.remove-image-btn').addEventListener('click', () => div.remove());
+        if (url && url !== product.image) { // пропускаем основное, если случайно попало
+          const div = document.createElement('div');
+          div.className = 'image-input-row';
+          div.innerHTML = '<input type="url" class="product-image-extra" value="' + url + '" style="width:80%;"><button type="button" class="btn-sm danger remove-image-btn">🗑</button>';
+          document.getElementById('additional-images-container').appendChild(div);
+          div.querySelector('.remove-image-btn').addEventListener('click', () => div.remove());
+        }
       });
     }
 
@@ -285,6 +283,9 @@ document.addEventListener('DOMContentLoaded', () => {
           row.querySelector('.variant-stock').addEventListener('input', updateTotalStock);
         });
       }
+      document.getElementById('product-stock').value = 0; // будет пересчитан
+    } else {
+      document.getElementById('product-stock').value = product.stock || 0;
     }
     updateTotalStock();
 
@@ -300,6 +301,77 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     productModal.style.display = 'flex';
   }
+
+  // Загрузка изображений
+  async function uploadImageToDrive(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64Data = reader.result.split(',')[1];
+        try {
+          const res = await fetch(IMAGE_UPLOAD_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileName: file.name,
+              mimeType: file.type,
+              data: base64Data
+            })
+          });
+          const data = await res.json();
+          if (data.url) resolve(data.url);
+          else reject(new Error('Некорректный ответ сервера'));
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  document.getElementById('upload-main-image-btn').addEventListener('click', () => {
+    document.getElementById('main-image-file').click();
+  });
+  document.getElementById('main-image-file').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const url = await uploadImageToDrive(file);
+      document.getElementById('product-image').value = url;
+    } catch (err) {
+      alert('Ошибка загрузки: ' + err.message);
+    }
+  });
+
+  document.getElementById('upload-extra-image-btn').addEventListener('click', () => {
+    document.getElementById('extra-image-file').click();
+  });
+  document.getElementById('extra-image-file').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const url = await uploadImageToDrive(file);
+      const container = document.getElementById('additional-images-container');
+      const div = document.createElement('div');
+      div.className = 'image-input-row';
+      div.innerHTML = '<input type="url" class="product-image-extra" value="' + url + '" style="width:80%;"><button type="button" class="btn-sm danger remove-image-btn">🗑</button>';
+      container.appendChild(div);
+      div.querySelector('.remove-image-btn').addEventListener('click', () => div.remove());
+    } catch (err) {
+      alert('Ошибка загрузки: ' + err.message);
+    }
+  });
+
+  // Кнопка "Добавить изображение по URL"
+  document.getElementById('add-image-btn').addEventListener('click', () => {
+    const container = document.getElementById('additional-images-container');
+    const div = document.createElement('div');
+    div.className = 'image-input-row';
+    div.innerHTML = '<input type="url" class="product-image-extra" placeholder="URL изображения" style="width:80%; margin-right:5px;"><button type="button" class="btn-sm danger remove-image-btn">🗑</button>';
+    container.appendChild(div);
+    div.querySelector('.remove-image-btn').addEventListener('click', () => div.remove());
+  });
 
   async function loadOrders() {
     const container = document.getElementById('orders-list');

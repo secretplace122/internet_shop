@@ -97,11 +97,11 @@ function renderProductsFromData(products, reviewsData) {
   }
   container.innerHTML = products.map(p => {
     const badgeHtml = p.badge ? `<span class="badge" style="background:${p.badge.bgColor};color:${p.badge.color}">${p.badge.text}</span>` : '';
-    const images = (p.images && p.images.length) ? p.images : [p.image];
+    const allImages = [p.image, ...(p.images || [])];
     const galleryHtml = `
       <div class="card-gallery">
         <div class="card-gallery-scroll">
-          ${images.map(url => `<img src="${url}" alt="${p.title}" loading="lazy">`).join('')}
+          ${allImages.map(url => `<img src="${url}" alt="${p.title}" loading="lazy">`).join('')}
         </div>
         ${badgeHtml}
       </div>`;
@@ -253,11 +253,11 @@ function subscribeToProducts() {
 
 function createProductCardHtml(product) {
   const badgeHtml = product.badge ? `<span class="badge" style="background:${product.badge.bgColor};color:${product.badge.color}">${product.badge.text}</span>` : '';
-  const images = (product.images && product.images.length) ? product.images : [product.image];
+  const allImages = [product.image, ...(product.images || [])];
   const galleryHtml = `
     <div class="card-gallery">
       <div class="card-gallery-scroll">
-        ${images.map(url => `<img src="${url}" alt="${product.title}" loading="lazy">`).join('')}
+        ${allImages.map(url => `<img src="${url}" alt="${product.title}" loading="lazy">`).join('')}
       </div>
       ${badgeHtml}
     </div>`;
@@ -426,7 +426,7 @@ function addToCart(product, delta = 1, variant = null) {
       id: product.id,
       title: product.title,
       price: product.price,
-      image: product.images?.[0] || product.image,
+      image: product.image,
       qty: delta,
       variant: variant
     });

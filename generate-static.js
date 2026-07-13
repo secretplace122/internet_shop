@@ -34,10 +34,10 @@ async function generate() {
 
   for (const product of products) {
     const { avg, count } = await getAverageRating(product.id);
-    const mainImage = (product.images && product.images.length) ? product.images[0] : product.image;
-    const images = product.images && product.images.length ? product.images : [product.image];
+    const allImages = [product.image, ...(product.images || [])];
+    const mainImage = allImages[0];
 
-    const thumbsHtml = images.map((url, idx) =>
+    const thumbsHtml = allImages.map((url, idx) =>
       `<img src="${url}" class="gallery-thumb${idx === 0 ? ' active' : ''}" data-index="${idx}" loading="lazy">`
     ).join('');
 

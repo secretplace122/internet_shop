@@ -222,18 +222,18 @@ function renderProduct() {
   document.getElementById('product-description').textContent = product.description;
   document.getElementById('product-price').textContent = product.price.toLocaleString() + ' ₽';
 
-  const images = product.images?.length ? product.images : [product.image];
+  const allImages = [product.image, ...(product.images || [])];
   const mainImage = document.getElementById('main-image');
-  mainImage.src = images[0];
+  mainImage.src = allImages[0];
   mainImage.dataset.index = 0;
   const thumbsContainer = document.getElementById('gallery-thumbs');
-  thumbsContainer.innerHTML = images.map((url, idx) =>
+  thumbsContainer.innerHTML = allImages.map((url, idx) =>
     `<img src="${url}" class="gallery-thumb ${idx === 0 ? 'active' : ''}" data-index="${idx}" loading="lazy">`
   ).join('');
   document.querySelectorAll('.gallery-thumb').forEach(thumb => {
     thumb.addEventListener('click', () => {
       const idx = parseInt(thumb.dataset.index);
-      mainImage.src = images[idx];
+      mainImage.src = allImages[idx];
       mainImage.dataset.index = idx;
       document.querySelectorAll('.gallery-thumb').forEach(t => t.classList.remove('active'));
       thumb.classList.add('active');
@@ -242,19 +242,19 @@ function renderProduct() {
 }
 
 function setupGallery() {
-  const images = product.images?.length ? product.images : [product.image];
+  const allImages = [product.image, ...(product.images || [])];
   const mainImage = document.getElementById('main-image');
   let currentIndex = 0;
 
   document.getElementById('gallery-left').addEventListener('click', () => {
-    currentIndex = (currentIndex - 1 + images.length) % images.length;
-    mainImage.src = images[currentIndex];
+    currentIndex = (currentIndex - 1 + allImages.length) % allImages.length;
+    mainImage.src = allImages[currentIndex];
     mainImage.dataset.index = currentIndex;
     updateThumbs(currentIndex);
   });
   document.getElementById('gallery-right').addEventListener('click', () => {
-    currentIndex = (currentIndex + 1) % images.length;
-    mainImage.src = images[currentIndex];
+    currentIndex = (currentIndex + 1) % allImages.length;
+    mainImage.src = allImages[currentIndex];
     mainImage.dataset.index = currentIndex;
     updateThumbs(currentIndex);
   });
@@ -380,7 +380,7 @@ function setupAddToCart() {
         id: product.id,
         title: product.title,
         price: product.price,
-        image: product.images?.[0] || product.image,
+        image: product.image,
         qty: 1,
         variant: selectedVariant
       });

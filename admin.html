@@ -68,10 +68,16 @@
           <label>Остаток (шт) – если без вариантов</label>
           <input type="number" id="product-stock" value="0">
           <label>Главное изображение</label>
-          <input type="url" id="product-image" placeholder="https://..." required>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="url" id="product-image" placeholder="https://..." style="flex:1;">
+            <input type="file" id="main-image-file" accept="image/*" style="display:none;">
+            <button type="button" id="upload-main-image-btn" class="btn-sm">📁 Загрузить</button>
+          </div>
           <label>Доп. изображения</label>
           <div id="additional-images-container"></div>
-          <button type="button" id="add-image-btn" class="btn-sm" style="width:auto; margin-top:5px;">+ Изображение</button>
+          <button type="button" id="add-image-btn" class="btn-sm" style="width:auto; margin-top:5px;">+ Изображение (URL)</button>
+          <button type="button" id="upload-extra-image-btn" class="btn-sm" style="width:auto; margin-top:5px;">📁 Загрузить доп. фото</button>
+          <input type="file" id="extra-image-file" accept="image/*" style="display:none;">
 
           <label style="margin-top:15px;">Варианты (размеры)</label>
           <div id="variants-list"></div>
