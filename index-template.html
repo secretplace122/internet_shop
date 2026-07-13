@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Магазин – каталог товаров</title>
+  <meta name="description" content="Лучшие товары с доставкой. Широкий ассортимент, низкие цены.">
+  <base href="/internet_shop/">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script defer src="js/firebase-config.js"></script>
+  <script defer src="js/app.js"></script>
+  <script src="https://www.google.com/recaptcha/api.js?render=6Ldue0wtAAAAAI-20EzQTUORuxLArIS9R3zmHOsL"></script>
+</head>
+<body>
+  <section class="hero">
+    <div class="container">
+      <h1>Добро пожаловать в магазин</h1>
+      <p>Лучшие товары с доставкой</p>
+    </div>
+  </section>
+
+  <section class="catalog" id="catalog">
+    <div class="container">
+      <h2>Товары</h2>
+      <div class="products-grid" id="products-container">
+        {{productList}}
+      </div>
+    </div>
+  </section>
+
+  <section class="info">
+    <div class="container">
+      <h2>Почему мы?</h2>
+      <div class="info-cards">
+        <div class="info-card"><h3>Быстрая доставка</h3><p>Доставляем по всей стране</p></div>
+        <div class="info-card"><h3>Качество</h3><p>Проверенные товары</p></div>
+        <div class="info-card"><h3>Поддержка</h3><p>Ответим на вопросы</p></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="modal" id="cart-modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Корзина</h2>
+      <div id="cart-items"></div>
+      <div class="cart-total"><strong>Итого: <span id="cart-total-price">0</span> ₽</strong></div>
+      <button id="checkout-btn" class="btn">Оформить заказ</button>
+    </div>
+  </div>
+
+  <button class="cart-float-btn" id="cart-float-btn">
+    🛒
+    <span class="cart-count-badge" id="cart-count">0</span>
+  </button>
+</body>
+</html>

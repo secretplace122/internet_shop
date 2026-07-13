@@ -21,13 +21,16 @@ async function getAverageRating(productId) {
 }
 
 async function generate() {
-  const template = await fs.readFile('product-template.html', 'utf8');
+  const productTemplate = await fs.readFile('product-template.html', 'utf8');
+  const indexTemplate = await fs.readFile('index-template.html', 'utf8');
+  
   const snapshot = await db.collection('products').get();
   const products = [];
   snapshot.forEach(doc => products.push({ id: doc.id, ...doc.data() }));
 
-  // Очищаем папку products перед генерацией
   await fs.emptyDir('products');
+
+  let productListHtml = '';
 
   for (const product of products) {
     const { avg, count } = await getAverageRating(product.id);
@@ -56,7 +59,7 @@ async function generate() {
       stockInfo = `Осталось: ${product.stock || 0} шт.`;
     }
 
-    let html = template
+    let html = productTemplate
       .replace(/{{title}}/g, product.title)
       .replace(/{{description}}/g, product.description)
       .replace(/{{price}}/g, product.price.toLocaleString())
@@ -72,7 +75,26 @@ async function generate() {
     await fs.ensureDir(outDir);
     await fs.writeFile(path.join(outDir, 'index.html'), html);
     console.log(`Generated: products/${product.id}/`);
+
+    productListHtml += `
+      <div class="product-card" data-id="${product.id}">
+        <div class="card-gallery">
+          <div class="card-gallery-scroll">
+            <img src="${mainImage}" alt="${product.title}" loading="lazy">
+          </div>
+        </div>
+        <div class="product-info">
+          <h3><a href="products/${product.id}/">${product.title}</a></h3>
+          <p class="description">${product.description}</p>
+          <div class="price">${product.price.toLocaleString()} ₽</div>
+        </div>
+      </div>
+    `;
   }
+
+  const indexHtml = indexTemplate.replace('{{productList}}', productListHtml);
+  await fs.writeFile('index.html', indexHtml);
+  console.log('Generated index.html');
 }
 
 generate().catch(console.error);
