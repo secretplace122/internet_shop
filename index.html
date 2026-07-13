@@ -3,13 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Магазин</title>
+  <title>Магазин – каталог товаров</title>
+  <meta name="description" content="Лучшие товары с доставкой. Широкий ассортимент, низкие цены.">
+  <base href="/internet_shop/">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script defer src="js/firebase-config.js"></script>
   <script defer src="js/app.js"></script>
+  <script src="https://www.google.com/recaptcha/api.js?render=6Ldue0wtAAAAAI-20EzQTUORuxLArIS9R3zmHOsL"></script>
 </head>
 <body>
   <section class="hero">
@@ -22,7 +25,35 @@
   <section class="catalog" id="catalog">
     <div class="container">
       <h2>Товары</h2>
-      <div class="products-grid" id="products-container"></div>
+      <div class="products-grid" id="products-container">
+        
+      <div class="product-card" data-id="item1">
+        <div class="card-gallery">
+          <div class="card-gallery-scroll">
+            <img src="https://img.magnific.com/premium-vector/beautiful-landscape-nature-background-images-free-download-freepik-vector_1305309-1561.jpg" alt="Футболка" loading="lazy">
+          </div>
+        </div>
+        <div class="product-info">
+          <h3><a href="products/item1/">Футболка</a></h3>
+          <p class="description">1</p>
+          <div class="price">123 ₽</div>
+        </div>
+      </div>
+    
+      <div class="product-card" data-id="item2">
+        <div class="card-gallery">
+          <div class="card-gallery-scroll">
+            <img src="https://cf.ppt-online.org/files1/slide/u/uYbWEvFwknVKpehMqQyo76g9fISjGCaR3Hs2UtTczx/slide-3.jpg" alt="Часы" loading="lazy">
+          </div>
+        </div>
+        <div class="product-info">
+          <h3><a href="products/item2/">Часы</a></h3>
+          <p class="description">44</p>
+          <div class="price">232 ₽</div>
+        </div>
+      </div>
+    
+      </div>
     </div>
   </section>
 
@@ -51,7 +82,5 @@
     🛒
     <span class="cart-count-badge" id="cart-count">0</span>
   </button>
-
-  <script src="https://www.google.com/recaptcha/api.js?render=6Ldue0wtAAAAAI-20EzQTUORuxLArIS9R3zmHOsL"></script>
 </body>
 </html>
