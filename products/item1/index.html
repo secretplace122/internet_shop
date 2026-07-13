@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Футболка – Магазин</title>
+  <meta name="description" content="1">
+  <base href="/internet_shop/">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/product.css">
+  <script>window.PRODUCT_ID = 'item1';</script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script defer src="js/firebase-config.js"></script>
+  <script defer src="js/product.js"></script>
+</head>
+<body>
+  <header class="product-header">
+    <a href="index.html" class="back-link">← Назад</a>
+  </header>
+
+  <main class="product-main container">
+    <div class="product-gallery" id="product-gallery">
+      <div class="gallery-container">
+        <img id="main-image" src="https://img.magnific.com/premium-vector/beautiful-landscape-nature-background-images-free-download-freepik-vector_1305309-1561.jpg" alt="Футболка" class="gallery-main-image">
+        <div class="gallery-thumbs" id="gallery-thumbs">
+          <img src="https://img.magnific.com/premium-vector/beautiful-landscape-nature-background-images-free-download-freepik-vector_1305309-1561.jpg" class="gallery-thumb active" data-index="0" loading="lazy">
+        </div>
+        <button class="gallery-arrow left" id="gallery-left">‹</button>
+        <button class="gallery-arrow right" id="gallery-right">›</button>
+      </div>
+    </div>
+    <div class="product-details">
+      <h1 id="product-title">Футболка</h1>
+      <div class="rating-row" id="rating-row">
+        <span class="rating-star">★</span>
+        <span class="rating-value" id="avg-rating">0.0</span>
+        <span class="review-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          <span id="review-count">0</span>
+        </span>
+      </div>
+      <p id="product-description">1</p>
+      <div class="product-price" id="product-price">123 ₽</div>
+      <div class="variant-pills" id="variant-pills">
+        <span class="variant-pill active"
+               data-value="s" data-stock="3">
+           s
+         </span><span class="variant-pill"
+               data-value="a" data-stock="2">
+           a
+         </span>
+      </div>
+      <div class="stock-info" id="stock-info">Доступно: 3 шт.</div>
+      <div class="quantity-row">
+        <div class="quantity-picker">
+          <button class="qty-btn" id="qty-decrease">−</button>
+          <span class="qty-value" id="qty-value">1</span>
+          <button class="qty-btn" id="qty-increase">+</button>
+        </div>
+        <button class="btn add-to-cart-btn" id="add-to-cart-btn">В корзину</button>
+      </div>
+      <div class="product-message" id="product-message"></div>
+    </div>
+  </main>
+
+  <section class="reviews-section container">
+    <h2>Отзывы</h2>
+    <div class="review-form">
+      <h3>Оставить отзыв</h3>
+      <input type="text" id="review-author" placeholder="Ваше имя" required>
+      <div class="star-rating" id="star-rating">
+        <span data-rating="1">☆</span><span data-rating="2">☆</span><span data-rating="3">☆</span><span data-rating="4">☆</span><span data-rating="5">☆</span>
+      </div>
+      <textarea id="review-text" rows="3" placeholder="Ваш комментарий"></textarea>
+      <button id="submit-review" class="btn">Отправить</button>
+      <p id="review-message" class="error-message"></p>
+    </div>
+    <div id="reviews-list"></div>
+  </section>
+
+  <div class="modal" id="cart-modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Корзина</h2>
+      <div id="cart-items"></div>
+      <div class="cart-total"><strong>Итого: <span id="cart-total-price">0</span> ₽</strong></div>
+      <button id="checkout-btn" class="btn">Оформить заказ</button>
+    </div>
+  </div>
+
+  <button class="cart-float-btn" id="cart-float-btn">
+    🛒
+    <span class="cart-count-badge" id="cart-count">0</span>
+  </button>
+</body>
+</html>
