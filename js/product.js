@@ -124,7 +124,7 @@ function subscribeToProduct() {
         const newData = doc.data();
         setCachedProduct(productId, newData);
         product = { id: productId, ...newData };
-        updateProductStockAndVariants();
+        updateProductInfo();
         loadReviewsData();
       } else {
         document.body.innerHTML = 'Товар больше не доступен';
@@ -134,18 +134,17 @@ function subscribeToProduct() {
     });
 }
 
-window.addEventListener('beforeunload', () => {
-  if (unsubscribeProduct) unsubscribeProduct();
-});
-
-function updateProductStockAndVariants() {
+function updateProductInfo() {
   if (!product) return;
+  document.getElementById('product-title').textContent = product.title;
+  document.getElementById('product-description').textContent = product.description;
+  document.getElementById('product-price').textContent = product.price.toLocaleString() + ' ₽';
+
   const container = document.getElementById('variant-pills');
   const stockInfo = document.getElementById('stock-info');
   if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
     const variant = product.variants[0];
     const options = variant.options;
-    // сохраняем текущий выбор, если он еще валиден
     const activeValue = selectedVariant && options.some(o => o.value === selectedVariant.value && o.stock > 0)
       ? selectedVariant.value
       : (options.find(o => o.stock > 0) || options[0])?.value;
@@ -169,7 +168,6 @@ function updateProductStockAndVariants() {
       if (stockInfo) stockInfo.textContent = 'Нет в наличии';
       updateControlsForStock(0);
     }
-    // перепривяжем обработчики вариант-пиллов
     if (container) {
       container.querySelectorAll('.variant-pill:not(.disabled)').forEach(pill => {
         pill.addEventListener('click', () => {
