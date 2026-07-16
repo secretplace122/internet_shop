@@ -23,6 +23,8 @@ let selectedVariant = null;
 let selectedRating = 0;
 let currentMaxStock = 0;
 let unsubscribeProduct = null;
+let galleryImages = [];
+let currentGalleryIndex = 0;
 
 document.querySelectorAll('#star-rating span').forEach(star => {
   star.addEventListener('click', function() {
@@ -66,9 +68,7 @@ async function checkDataVersion() {
 function clearAllProductCaches() {
   for (let i = localStorage.length - 1; i >= 0; i--) {
     const key = localStorage.key(i);
-    if (key.startsWith(PRODUCT_CACHE_PREFIX)) {
-      localStorage.removeItem(key);
-    }
+    if (key.startsWith(PRODUCT_CACHE_PREFIX)) localStorage.removeItem(key);
   }
 }
 
@@ -79,9 +79,7 @@ function getCachedProduct(id) {
     const cache = JSON.parse(raw);
     if (Date.now() - cache.timestamp > PRODUCT_CACHE_TTL) return null;
     return cache.product;
-  } catch (e) {
-    return null;
-  }
+  } catch (e) { return null; }
 }
 
 function setCachedProduct(id, product) {
@@ -97,7 +95,6 @@ async function loadProduct() {
       afterProductLoad();
       return;
     }
-
     const doc = await db.collection('products').doc(productId).get();
     if (!doc.exists) {
       document.body.innerHTML = 'Товар не найден';
@@ -139,6 +136,19 @@ function updateProductInfo() {
   document.getElementById('product-title').textContent = product.title;
   document.getElementById('product-description').textContent = product.description;
   document.getElementById('product-price').textContent = product.price.toLocaleString() + ' ₽';
+
+  const oldPriceBlock = document.getElementById('old-price-block');
+  if (product.oldPrice && product.oldPrice > product.price) {
+    const discount = Math.round((1 - product.price / product.oldPrice) * 100);
+    document.getElementById('old-price-value').textContent = product.oldPrice.toLocaleString() + ' ₽';
+    document.getElementById('discount-badge').textContent = '-' + discount + '%';
+    oldPriceBlock.style.display = 'flex';
+  } else {
+    oldPriceBlock.style.display = 'none';
+  }
+
+  galleryImages = [product.image, ...(product.images || [])];
+  renderGallery();
 
   const container = document.getElementById('variant-pills');
   const stockInfo = document.getElementById('stock-info');
@@ -187,6 +197,45 @@ function updateProductInfo() {
   updateControlsForStock(currentMaxStock);
 }
 
+function renderGallery() {
+  const slider = document.getElementById('gallery-slider');
+  const dotsContainer = document.getElementById('gallery-dots');
+  slider.innerHTML = galleryImages.map(url => `<img src="${url}" alt="">`).join('');
+  dotsContainer.innerHTML = galleryImages.map((_, idx) =>
+    `<span class="gallery-dot${idx === 0 ? ' active' : ''}" data-index="${idx}"></span>`
+  ).join('');
+  currentGalleryIndex = 0;
+  slider.scrollLeft = 0;
+  document.querySelectorAll('.gallery-dot').forEach(dot => {
+    dot.addEventListener('click', () => {
+      const idx = parseInt(dot.dataset.index);
+      slider.scrollTo({ left: idx * slider.clientWidth, behavior: 'smooth' });
+    });
+  });
+  slider.addEventListener('scroll', () => {
+    const idx = Math.round(slider.scrollLeft / slider.clientWidth);
+    if (idx !== currentGalleryIndex) {
+      currentGalleryIndex = idx;
+      document.querySelectorAll('.gallery-dot').forEach(d => d.classList.remove('active'));
+      const activeDot = document.querySelector(`.gallery-dot[data-index="${idx}"]`);
+      if (activeDot) activeDot.classList.add('active');
+    }
+  });
+}
+
+function setupGallery() {
+  document.getElementById('gallery-left').addEventListener('click', () => {
+    const slider = document.getElementById('gallery-slider');
+    currentGalleryIndex = (currentGalleryIndex - 1 + galleryImages.length) % galleryImages.length;
+    slider.scrollTo({ left: currentGalleryIndex * slider.clientWidth, behavior: 'smooth' });
+  });
+  document.getElementById('gallery-right').addEventListener('click', () => {
+    const slider = document.getElementById('gallery-slider');
+    currentGalleryIndex = (currentGalleryIndex + 1) % galleryImages.length;
+    slider.scrollTo({ left: currentGalleryIndex * slider.clientWidth, behavior: 'smooth' });
+  });
+}
+
 function afterProductLoad() {
   loadReviewsData().then(() => {
     renderProduct();
@@ -222,48 +271,17 @@ function renderProduct() {
   document.getElementById('product-description').textContent = product.description;
   document.getElementById('product-price').textContent = product.price.toLocaleString() + ' ₽';
 
-  const allImages = [product.image, ...(product.images || [])];
-  const mainImage = document.getElementById('main-image');
-  mainImage.src = allImages[0];
-  mainImage.dataset.index = 0;
-  const thumbsContainer = document.getElementById('gallery-thumbs');
-  thumbsContainer.innerHTML = allImages.map((url, idx) =>
-    `<img src="${url}" class="gallery-thumb ${idx === 0 ? 'active' : ''}" data-index="${idx}" loading="lazy">`
-  ).join('');
-  document.querySelectorAll('.gallery-thumb').forEach(thumb => {
-    thumb.addEventListener('click', () => {
-      const idx = parseInt(thumb.dataset.index);
-      mainImage.src = allImages[idx];
-      mainImage.dataset.index = idx;
-      document.querySelectorAll('.gallery-thumb').forEach(t => t.classList.remove('active'));
-      thumb.classList.add('active');
-    });
-  });
-}
-
-function setupGallery() {
-  const allImages = [product.image, ...(product.images || [])];
-  const mainImage = document.getElementById('main-image');
-  let currentIndex = 0;
-
-  document.getElementById('gallery-left').addEventListener('click', () => {
-    currentIndex = (currentIndex - 1 + allImages.length) % allImages.length;
-    mainImage.src = allImages[currentIndex];
-    mainImage.dataset.index = currentIndex;
-    updateThumbs(currentIndex);
-  });
-  document.getElementById('gallery-right').addEventListener('click', () => {
-    currentIndex = (currentIndex + 1) % allImages.length;
-    mainImage.src = allImages[currentIndex];
-    mainImage.dataset.index = currentIndex;
-    updateThumbs(currentIndex);
-  });
-
-  function updateThumbs(idx) {
-    document.querySelectorAll('.gallery-thumb').forEach((thumb, i) => {
-      thumb.classList.toggle('active', i === idx);
-    });
+  if (product.oldPrice && product.oldPrice > product.price) {
+    const discount = Math.round((1 - product.price / product.oldPrice) * 100);
+    document.getElementById('old-price-value').textContent = product.oldPrice.toLocaleString() + ' ₽';
+    document.getElementById('discount-badge').textContent = '-' + discount + '%';
+    document.getElementById('old-price-block').style.display = 'flex';
+  } else {
+    document.getElementById('old-price-block').style.display = 'none';
   }
+
+  galleryImages = [product.image, ...(product.images || [])];
+  renderGallery();
 }
 
 function setupVariantSelector() {
@@ -462,7 +480,9 @@ function renderCart() {
     `;
   }).join('');
 
-  container.querySelectorAll('[data-action]').forEach(btn => {
+  const actionButtons = container.querySelectorAll('[data-action]');
+  actionButtons.forEach(btn => {
+    btn.removeEventListener('click', handleCartAction);
     btn.addEventListener('click', handleCartAction);
   });
 

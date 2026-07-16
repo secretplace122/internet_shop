@@ -34,6 +34,7 @@
     <div class="deploy-panel">
       <p>⚡ После добавления новых товаров нажмите кнопку, чтобы обновить сайт.</p>
       <button id="deploy-btn" class="btn-deploy">🚀 Обновить сайт</button>
+      <button id="info-btn" class="btn-info" title="Информация">i</button>
       <span id="deploy-status"></span>
     </div>
 
@@ -94,6 +95,15 @@
             <label>Цвет текста</label>
             <input type="color" id="badge-color" value="#ffffff">
           </div>
+
+          <label class="checkbox-label">
+            <input type="checkbox" id="product-has-old-price"> Старая цена
+          </label>
+          <div id="old-price-settings" style="display:none;">
+            <label>Старая цена (₽)</label>
+            <input type="number" id="old-price-value" value="0">
+          </div>
+
           <button type="submit" class="btn" style="margin-top:15px;">Сохранить</button>
         </form>
       </div>

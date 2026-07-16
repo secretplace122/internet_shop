@@ -59,6 +59,12 @@ async function generate() {
       stockInfo = `Осталось: ${product.stock || 0} шт.`;
     }
 
+    let oldPriceHtml = '';
+    if (product.oldPrice && product.oldPrice > product.price) {
+      const discount = Math.round((1 - product.price / product.oldPrice) * 100);
+      oldPriceHtml = `<div class="old-price-block" style="display:flex; gap:8px; align-items:center; margin-bottom:12px;"><span class="old-price" style="text-decoration:line-through; color:#5a6577; font-size:1rem;">${product.oldPrice.toLocaleString()} ₽</span><span class="discount-badge" style="font-size:0.85rem; font-weight:600; color:#e53e3e; background:rgba(229,62,62,0.1); padding:2px 8px; border-radius:10px;">-${discount}%</span></div>`;
+    }
+
     let html = productTemplate
       .replace(/{{title}}/g, product.title)
       .replace(/{{description}}/g, product.description)
@@ -69,7 +75,8 @@ async function generate() {
       .replace(/{{stockInfo}}/g, stockInfo)
       .replace(/{{avgRating}}/g, avg)
       .replace(/{{reviewCount}}/g, count.toString())
-      .replace(/{{productId}}/g, product.id);
+      .replace(/{{productId}}/g, product.id)
+      .replace('<!--oldPriceBlock-->', oldPriceHtml);
 
     const outDir = path.join('products', product.id);
     await fs.ensureDir(outDir);

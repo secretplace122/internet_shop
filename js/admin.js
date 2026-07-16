@@ -1,6 +1,6 @@
 const API_URL = 'https://functions.yandexcloud.net/d4eengms62slq876jbka';
 const IMGBB_API_KEY = '772a4a756c7b9152c0c6a271bc461669';
-const MAX_FILE_SIZE = 32 * 1024 * 1024; // 32 МБ
+const MAX_FILE_SIZE = 32 * 1024 * 1024;
 
 document.addEventListener('DOMContentLoaded', () => {
   const auth = firebase.auth();
@@ -57,7 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ secret: 'my-super-secret-2024' })
       });
-
       if (response.ok) {
         status.textContent = '✅ Сайт обновляется! Через 1-2 минуты изменения появятся.';
         btn.textContent = '✅ Готово';
@@ -77,18 +76,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  const productModal = document.getElementById('product-modal');
-  const supplyModal = document.getElementById('supply-modal');
+  document.getElementById('info-btn').addEventListener('click', () => {
+    alert('Если не нажать на кнопку "Обновить" после добавления нового товара, карточка появится, но будет недоступна к открытию. При изменении данных действующих карточек нажимать "Обновить" не нужно.');
+  });
 
+  const productModal = document.getElementById('product-modal');
   document.querySelectorAll('.close').forEach(closeBtn => {
     closeBtn.addEventListener('click', () => {
       productModal.style.display = 'none';
-      supplyModal.style.display = 'none';
     });
   });
 
   document.getElementById('product-has-badge').addEventListener('change', (e) => {
     document.getElementById('badge-settings').style.display = e.target.checked ? 'block' : 'none';
+  });
+
+  document.getElementById('product-has-old-price').addEventListener('change', (e) => {
+    document.getElementById('old-price-settings').style.display = e.target.checked ? 'block' : 'none';
   });
 
   function updateTotalStock() {
@@ -108,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('variants-list');
     const row = document.createElement('div');
     row.className = 'variant-row-dynamic';
-    row.innerHTML = '<input type="text" class="variant-value" placeholder="Размер (например XL)" style="width:40%;"><input type="number" class="variant-stock" placeholder="Остаток" value="0" style="width:40%;"><button type="button" class="btn-sm danger remove-variant">🗑</button>';
+    row.innerHTML = '<input type="text" class="variant-value" placeholder="Размер" style="width:40%;"><input type="number" class="variant-stock" placeholder="Остаток" value="0" style="width:40%;"><button type="button" class="btn-sm danger remove-variant">🗑</button>';
     container.appendChild(row);
     row.querySelector('.remove-variant').addEventListener('click', () => {
       row.remove();
@@ -127,6 +131,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('product-stock').disabled = false;
     document.getElementById('product-stock').value = 0;
     document.getElementById('badge-settings').style.display = 'none';
+    document.getElementById('old-price-settings').style.display = 'none';
+    document.getElementById('product-has-old-price').checked = false;
     productModal.style.display = 'flex';
   });
 
@@ -134,6 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     const id = document.getElementById('product-id').value;
     const hasBadge = document.getElementById('product-has-badge').checked;
+    const hasOldPrice = document.getElementById('product-has-old-price').checked;
     const mainImage = document.getElementById('product-image').value.trim();
     if (!mainImage) { alert('Укажите главное изображение'); return; }
 
@@ -150,7 +157,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let variants = null;
     let stock = 0;
-
     if (options.length > 0) {
       variants = [{ name: 'Размер', options }];
     } else {
@@ -165,7 +171,8 @@ document.addEventListener('DOMContentLoaded', () => {
       image: mainImage,
       images: images,
       variants: variants,
-      badge: null
+      badge: null,
+      oldPrice: null
     };
 
     if (hasBadge) {
@@ -174,6 +181,9 @@ document.addEventListener('DOMContentLoaded', () => {
         bgColor: document.getElementById('badge-bg').value,
         color: document.getElementById('badge-color').value
       };
+    }
+    if (hasOldPrice) {
+      productData.oldPrice = parseInt(document.getElementById('old-price-value').value) || 0;
     }
 
     try {
@@ -224,7 +234,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       container.innerHTML = '<table><thead><tr><th>Фото</th><th>Название</th><th>Цена</th><th>Остаток</th><th>Бирка</th><th>Действия</th></tr></thead><tbody>' +
-        products.map(p => '<tr><td data-label="Фото"><img src="' + p.image + '" alt="' + p.title + '"></td><td data-label="Название">' + p.title + '</td><td data-label="Цена">' + p.price.toLocaleString() + ' ₽</td><td data-label="Остаток">' + p.totalStock + '</td><td data-label="Бирка">' + (p.badge ? '<span class="badge-preview" style="background:' + p.badge.bgColor + ';color:' + p.badge.color + '">' + p.badge.text + '</span>' : '—') + '</td><td data-label="Действия" class="actions"><button class="btn-sm edit" data-id="' + p.id + '">✏️</button><button class="btn-sm danger delete" data-id="' + p.id + '">🗑</button></td></tr>').join('') +
+        products.map(p => {
+          const oldPriceText = p.oldPrice && p.oldPrice > p.price ? `<br><span style="text-decoration:line-through;color:#999;">${p.oldPrice.toLocaleString()} ₽</span>` : '';
+          return '<tr><td data-label="Фото"><img src="' + p.image + '" alt="' + p.title + '"></td><td data-label="Название">' + p.title + '</td><td data-label="Цена">' + p.price.toLocaleString() + ' ₽' + oldPriceText + '</td><td data-label="Остаток">' + p.totalStock + '</td><td data-label="Бирка">' + (p.badge ? '<span class="badge-preview" style="background:' + p.badge.bgColor + ';color:' + p.badge.color + '">' + p.badge.text + '</span>' : '—') + '</td><td data-label="Действия" class="actions"><button class="btn-sm edit" data-id="' + p.id + '">✏️</button><button class="btn-sm danger delete" data-id="' + p.id + '">🗑</button></td></tr>';
+        }).join('') +
         '</tbody></table>';
 
       container.querySelectorAll('.edit').forEach(btn => {
@@ -300,28 +313,34 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('product-has-badge').checked = false;
       document.getElementById('badge-settings').style.display = 'none';
     }
+
+    if (product.oldPrice && product.oldPrice > product.price) {
+      document.getElementById('product-has-old-price').checked = true;
+      document.getElementById('old-price-settings').style.display = 'block';
+      document.getElementById('old-price-value').value = product.oldPrice;
+    } else {
+      document.getElementById('product-has-old-price').checked = false;
+      document.getElementById('old-price-settings').style.display = 'none';
+      document.getElementById('old-price-value').value = '';
+    }
+
     productModal.style.display = 'flex';
   }
 
-  // Загрузка изображений на ImgBB
   async function uploadImageToImgBB(file) {
     if (file.size > MAX_FILE_SIZE) {
       throw new Error('Файл слишком большой. Максимальный размер 32 МБ.');
     }
-
     const formData = new FormData();
     formData.append('image', file);
-
     const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
       method: 'POST',
       body: formData
     });
-
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
       throw new Error(err?.error?.message || 'Ошибка загрузки');
     }
-
     const data = await response.json();
     return data.data.url;
   }
@@ -359,7 +378,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Кнопка "Добавить изображение по URL"
   document.getElementById('add-image-btn').addEventListener('click', () => {
     const container = document.getElementById('additional-images-container');
     const div = document.createElement('div');

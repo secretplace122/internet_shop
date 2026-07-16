@@ -33,7 +33,6 @@ async function checkDataVersion() {
 async function loadProductsFromFirestore(forceRefresh = false) {
   const container = document.getElementById('products-container');
   if (!container) return;
-
   if (!forceRefresh) {
     const cached = getCachedProducts();
     if (cached) {
@@ -43,7 +42,6 @@ async function loadProductsFromFirestore(forceRefresh = false) {
       return;
     }
   }
-
   try {
     const snapshot = await db.collection('products').get();
     const products = [];
@@ -96,16 +94,12 @@ function renderProductsFromData(products, reviewsData) {
     return;
   }
   container.innerHTML = products.map(p => {
+    const rev = reviewsData[p.id] || { avg: '0.0', count: 0 };
     const badgeHtml = p.badge ? `<span class="badge" style="background:${p.badge.bgColor};color:${p.badge.color}">${p.badge.text}</span>` : '';
     const allImages = [p.image, ...(p.images || [])];
-    const galleryHtml = `
-      <div class="card-gallery">
-        <div class="card-gallery-scroll">
-          ${allImages.map(url => `<img src="${url}" alt="${p.title}" loading="lazy">`).join('')}
-        </div>
-        ${badgeHtml}
-      </div>`;
-    const rev = reviewsData[p.id] || { avg: '0.0', count: 0 };
+    const imagesHtml = allImages.map((url, idx) => `<img src="${url}" alt="${p.title}" data-index="${idx}">`).join('');
+    const dotsHtml = allImages.map((_, idx) => `<span class="card-dot${idx === 0 ? ' active' : ''}" data-index="${idx}"></span>`).join('');
+
     let variantsHtml = '';
     let variantStockHtml = '';
     if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
@@ -121,13 +115,32 @@ function renderProductsFromData(products, reviewsData) {
             </span>
           `).join('')}
         </div>`;
-      variantStockHtml = `<span class="variant-stock" id="stock-${p.id}">Осталось: ${defaultOption.stock} шт.</span>`;
+      variantStockHtml = `<span class="variant-stock">Осталось: ${defaultOption.stock} шт.</span>`;
     } else {
       variantStockHtml = `<span class="stock-badge">Осталось: ${p.stock || 0} шт.</span>`;
     }
+
+    let priceBlockHtml = `<div class="price">${p.price.toLocaleString()} ₽</div>`;
+    if (p.oldPrice && p.oldPrice > p.price) {
+      const discount = Math.round((1 - p.price / p.oldPrice) * 100);
+      priceBlockHtml = `
+        <div class="price">${p.price.toLocaleString()} ₽</div>
+        <div class="old-price">${p.oldPrice.toLocaleString()} ₽</div>
+        <div class="discount-badge">-${discount}%</div>
+      `;
+    }
+
     return `
       <div class="product-card" data-id="${p.id}">
-        ${galleryHtml}
+        <div class="card-gallery">
+          <div class="card-gallery-slider" id="gallery-${p.id}">
+            ${imagesHtml}
+          </div>
+          <div class="card-dots" id="dots-${p.id}">
+            ${dotsHtml}
+          </div>
+          ${badgeHtml}
+        </div>
         <div class="product-info">
           <h3>${p.title}</h3>
           <p class="description">${p.description}</p>
@@ -141,10 +154,13 @@ function renderProductsFromData(products, reviewsData) {
           </div>
           ${variantStockHtml}
           ${variantsHtml}
-          <div class="price">${p.price.toLocaleString()} ₽</div>
+          <div class="price-block">
+            ${priceBlockHtml}
+          </div>
           <div class="cart-controls" id="controls-${p.id}"></div>
         </div>
-      </div>`;
+      </div>
+    `;
   }).join('');
 
   container.querySelectorAll('.product-card').forEach(card => {
@@ -153,17 +169,39 @@ function renderProductsFromData(products, reviewsData) {
     if (product) {
       const controls = card.querySelector('.cart-controls');
       if (controls) controls.innerHTML = createCartControls(card, product);
+      setupCardGallery(card);
     }
     addCardListeners(card);
   });
 }
 
+function setupCardGallery(card) {
+  const slider = card.querySelector('.card-gallery-slider');
+  const dots = card.querySelectorAll('.card-dot');
+  if (!slider || dots.length === 0) return;
+  let currentIndex = 0;
+  slider.addEventListener('scroll', () => {
+    const index = Math.round(slider.scrollLeft / slider.clientWidth);
+    if (index !== currentIndex) {
+      currentIndex = index;
+      dots.forEach(dot => dot.classList.remove('active'));
+      if (dots[currentIndex]) dots[currentIndex].classList.add('active');
+    }
+  });
+  dots.forEach(dot => {
+    dot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = parseInt(dot.dataset.index);
+      slider.scrollTo({ left: idx * slider.clientWidth, behavior: 'smooth' });
+    });
+  });
+}
+
 function addCardListeners(card) {
   card.addEventListener('click', (e) => {
-    if (e.target.closest('button') || e.target.closest('.variant-pill')) return;
+    if (e.target.closest('button') || e.target.closest('.variant-pill') || e.target.closest('.card-dot')) return;
     window.location.href = `products/${card.dataset.id}/`;
   });
-
   card.querySelectorAll('.variant-pill:not(.disabled)').forEach(pill => {
     pill.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -171,14 +209,11 @@ function addCardListeners(card) {
       row.querySelectorAll('.variant-pill').forEach(p => p.classList.remove('active'));
       pill.classList.add('active');
       const productId = card.dataset.id;
-      const stockEl = document.getElementById(`stock-${productId}`) || card.querySelector('.variant-stock, .stock-badge');
-      if (stockEl) {
-        stockEl.textContent = `Осталось: ${pill.dataset.stock} шт.`;
-      }
+      const stockEl = card.querySelector('.variant-stock, .stock-badge');
+      if (stockEl) stockEl.textContent = `Осталось: ${pill.dataset.stock} шт.`;
       updateCartControlsForCard(productId);
     });
   });
-
   card.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -237,6 +272,7 @@ function subscribeToProducts() {
         temp.innerHTML = createProductCardHtml(product);
         const newCard = temp.firstElementChild;
         container.appendChild(newCard);
+        setupCardGallery(newCard);
         addCardListeners(newCard);
       } else {
         updateProductCardFromData(card, product);
@@ -254,13 +290,9 @@ function subscribeToProducts() {
 function createProductCardHtml(product) {
   const badgeHtml = product.badge ? `<span class="badge" style="background:${product.badge.bgColor};color:${product.badge.color}">${product.badge.text}</span>` : '';
   const allImages = [product.image, ...(product.images || [])];
-  const galleryHtml = `
-    <div class="card-gallery">
-      <div class="card-gallery-scroll">
-        ${allImages.map(url => `<img src="${url}" alt="${product.title}" loading="lazy">`).join('')}
-      </div>
-      ${badgeHtml}
-    </div>`;
+  const imagesHtml = allImages.map((url, idx) => `<img src="${url}" alt="${product.title}" data-index="${idx}">`).join('');
+  const dotsHtml = allImages.map((_, idx) => `<span class="card-dot${idx === 0 ? ' active' : ''}" data-index="${idx}"></span>`).join('');
+
   let variantsHtml = '';
   let variantStockHtml = '';
   if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
@@ -276,13 +308,32 @@ function createProductCardHtml(product) {
           </span>
         `).join('')}
       </div>`;
-    variantStockHtml = `<span class="variant-stock" id="stock-${product.id}">Осталось: ${defaultOption.stock} шт.</span>`;
+    variantStockHtml = `<span class="variant-stock">Осталось: ${defaultOption.stock} шт.</span>`;
   } else {
     variantStockHtml = `<span class="stock-badge">Осталось: ${product.stock || 0} шт.</span>`;
   }
+
+  let priceBlockHtml = `<div class="price">${product.price.toLocaleString()} ₽</div>`;
+  if (product.oldPrice && product.oldPrice > product.price) {
+    const discount = Math.round((1 - product.price / product.oldPrice) * 100);
+    priceBlockHtml = `
+      <div class="price">${product.price.toLocaleString()} ₽</div>
+      <div class="old-price">${product.oldPrice.toLocaleString()} ₽</div>
+      <div class="discount-badge">-${discount}%</div>
+    `;
+  }
+
   return `
     <div class="product-card" data-id="${product.id}">
-      ${galleryHtml}
+      <div class="card-gallery">
+        <div class="card-gallery-slider" id="gallery-${product.id}">
+          ${imagesHtml}
+        </div>
+        <div class="card-dots" id="dots-${product.id}">
+          ${dotsHtml}
+        </div>
+        ${badgeHtml}
+      </div>
       <div class="product-info">
         <h3>${product.title}</h3>
         <p class="description">${product.description}</p>
@@ -296,10 +347,13 @@ function createProductCardHtml(product) {
         </div>
         ${variantStockHtml}
         ${variantsHtml}
-        <div class="price">${product.price.toLocaleString()} ₽</div>
+        <div class="price-block">
+          ${priceBlockHtml}
+        </div>
         <div class="cart-controls" id="controls-${product.id}"></div>
       </div>
-    </div>`;
+    </div>
+  `;
 }
 
 function updateProductCardFromData(card, product) {
@@ -327,6 +381,16 @@ function updateProductCardFromData(card, product) {
   if (stockEl) stockEl.textContent = stockText;
   const controls = card.querySelector('.cart-controls');
   if (controls) controls.innerHTML = createCartControls(card, product);
+
+  const priceBlock = card.querySelector('.price-block');
+  if (priceBlock) {
+    let html = `<div class="price">${product.price.toLocaleString()} ₽</div>`;
+    if (product.oldPrice && product.oldPrice > product.price) {
+      const discount = Math.round((1 - product.price / product.oldPrice) * 100);
+      html += `<div class="old-price">${product.oldPrice.toLocaleString()} ₽</div><div class="discount-badge">-${discount}%</div>`;
+    }
+    priceBlock.innerHTML = html;
+  }
 }
 
 function getCachedProducts(ignoreExpiry = false) {
