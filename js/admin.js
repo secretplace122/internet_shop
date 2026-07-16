@@ -1,5 +1,6 @@
 const API_URL = 'https://functions.yandexcloud.net/d4eengms62slq876jbka';
-const IMAGE_UPLOAD_URL = 'https://script.google.com/macros/s/AKfycbypsp9iwbVfno00TFhWivQiDgB_OSJ5lfCWhH9Jt5QZnVQQZQNwV4R-5D8c3NyrWwux-Q/exec';
+const IMGBB_API_KEY = '772a4a756c7b9152c0c6a271bc461669';
+const MAX_FILE_SIZE = 32 * 1024 * 1024; // 32 МБ
 
 document.addEventListener('DOMContentLoaded', () => {
   const auth = firebase.auth();
@@ -261,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (product.images && Array.isArray(product.images)) {
       product.images.forEach(url => {
-        if (url && url !== product.image) { // пропускаем основное, если случайно попало
+        if (url && url !== product.image) {
           const div = document.createElement('div');
           div.className = 'image-input-row';
           div.innerHTML = '<input type="url" class="product-image-extra" value="' + url + '" style="width:80%;"><button type="button" class="btn-sm danger remove-image-btn">🗑</button>';
@@ -283,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
           row.querySelector('.variant-stock').addEventListener('input', updateTotalStock);
         });
       }
-      document.getElementById('product-stock').value = 0; // будет пересчитан
+      document.getElementById('product-stock').value = 0;
     } else {
       document.getElementById('product-stock').value = product.stock || 0;
     }
@@ -302,32 +303,27 @@ document.addEventListener('DOMContentLoaded', () => {
     productModal.style.display = 'flex';
   }
 
-  // Загрузка изображений
-  async function uploadImageToDrive(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64Data = reader.result.split(',')[1];
-        try {
-          const res = await fetch(IMAGE_UPLOAD_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fileName: file.name,
-              mimeType: file.type,
-              data: base64Data
-            })
-          });
-          const data = await res.json();
-          if (data.url) resolve(data.url);
-          else reject(new Error('Некорректный ответ сервера'));
-        } catch (err) {
-          reject(err);
-        }
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+  // Загрузка изображений на ImgBB
+  async function uploadImageToImgBB(file) {
+    if (file.size > MAX_FILE_SIZE) {
+      throw new Error('Файл слишком большой. Максимальный размер 32 МБ.');
+    }
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+      method: 'POST',
+      body: formData
     });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err?.error?.message || 'Ошибка загрузки');
+    }
+
+    const data = await response.json();
+    return data.data.url;
   }
 
   document.getElementById('upload-main-image-btn').addEventListener('click', () => {
@@ -337,7 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const file = e.target.files[0];
     if (!file) return;
     try {
-      const url = await uploadImageToDrive(file);
+      const url = await uploadImageToImgBB(file);
       document.getElementById('product-image').value = url;
     } catch (err) {
       alert('Ошибка загрузки: ' + err.message);
@@ -351,7 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const file = e.target.files[0];
     if (!file) return;
     try {
-      const url = await uploadImageToDrive(file);
+      const url = await uploadImageToImgBB(file);
       const container = document.getElementById('additional-images-container');
       const div = document.createElement('div');
       div.className = 'image-input-row';
