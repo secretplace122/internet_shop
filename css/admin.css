@@ -84,6 +84,7 @@ body {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  position: relative;
 }
 .deploy-panel p {
   margin: 0;
@@ -115,11 +116,15 @@ body {
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   color: #555;
+  position: absolute;
+  top: 8px;
+  right: 8px;
 }
 
 #deploy-status {
   font-size: 0.8rem;
   color: #5a6577;
+  width: 100%;
 }
 
 .admin-tabs {
@@ -147,40 +152,100 @@ body {
 .toolbar { margin-bottom: 14px; }
 .toolbar .btn { width: auto; padding: 8px 20px; }
 
-.products-list table {
-  width: 100%;
+.products-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.admin-product-card {
   background: var(--white);
   border-radius: var(--radius);
-  overflow: hidden;
   box-shadow: var(--shadow-sm);
-  border-collapse: collapse;
-  table-layout: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.admin-product-card .card-gallery {
+  aspect-ratio: 3 / 4;
+  background: #f0f0f0;
+  position: relative;
+}
+.admin-product-card .card-gallery-slider {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.admin-product-card .card-gallery-slider::-webkit-scrollbar { display: none; }
+.admin-product-card .card-gallery-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+.admin-product-card .blur-bg {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background-size: cover;
+  background-position: center;
+  filter: blur(10px);
+  opacity: 0.6;
+}
+.admin-product-card .card-gallery-slide img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.admin-product-card .card-dots {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  z-index: 2;
+}
+.admin-product-card .card-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: rgba(180,180,180,0.8);
+}
+.admin-product-card .card-dot.active {
+  background: var(--primary);
+  transform: scale(1.4);
 }
 
-.products-list th, .products-list td {
-  padding: 8px 10px;
-  text-align: left;
-  border-bottom: 1px solid var(--border);
-  vertical-align: middle;
-  font-size: 0.8rem;
+.admin-product-card .admin-info {
+  padding: 12px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-
-.products-list th {
-  background: var(--light-bg);
+.admin-product-card .admin-info h3 {
+  font-size: 0.95rem;
   font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
+}
+.admin-product-card .admin-info .meta {
+  font-size: 0.8rem;
   color: var(--text-light);
 }
-
-.products-list img { width: 40px; height: 53px; object-fit: cover; border-radius: 4px; }
-
-.badge-preview { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; font-weight: 600; }
-
-.actions {
+.admin-product-card .admin-info .meta span {
+  display: block;
+}
+.admin-product-card .admin-actions {
   display: flex;
-  flex-wrap: wrap;
   gap: 4px;
+  margin-top: auto;
+}
+.admin-product-card .admin-actions .btn-sm {
+  flex: 1;
 }
 
 .btn-sm {
@@ -215,7 +280,6 @@ body {
   overflow-y: auto;
   position: relative;
 }
-.modal-small { max-width: 360px; }
 .close {
   position: absolute;
   right: 16px; top: 10px;
@@ -274,42 +338,14 @@ body {
 .order-card ul li { font-size: 0.75rem; padding: 2px 0; border-bottom: 1px dashed var(--border); }
 
 @media (max-width: 640px) {
-  .deploy-panel {
-    margin: 8px 12px 12px;
-    flex-direction: column;
-    align-items: flex-start;
+  .products-list {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
   }
-  .products-list table, .products-list thead, .products-list tbody, .products-list th, .products-list td, .products-list tr {
-    display: block;
+  .admin-product-card .admin-info h3 {
+    font-size: 0.8rem;
   }
-  .products-list thead tr { display: none; }
-  .products-list tbody tr {
-    background: var(--white);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-sm);
-    margin-bottom: 12px;
-    padding: 12px;
-    position: relative;
+  .admin-product-card .admin-info .meta {
+    font-size: 0.7rem;
   }
-  .products-list td {
-    border: none;
-    padding: 4px 0;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.75rem;
-  }
-  .products-list td::before {
-    content: attr(data-label);
-    font-weight: 600;
-    width: 80px;
-    min-width: 80px;
-    color: var(--text-light);
-  }
-  .products-list td:first-child { justify-content: center; }
-  .products-list td:first-child::before { display: none; }
-  .products-list img { width: 60px; height: 80px; }
-  .actions { justify-content: flex-end; }
-  .modal-content { padding: 16px; }
 }

@@ -50,7 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.disabled = true;
     btn.textContent = '⏳ Обновляем...';
     status.textContent = '';
-
     try {
       const response = await fetch(API_URL + '?path=/trigger-deploy', {
         method: 'POST',
@@ -90,7 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('product-has-badge').addEventListener('change', (e) => {
     document.getElementById('badge-settings').style.display = e.target.checked ? 'block' : 'none';
   });
-
   document.getElementById('product-has-old-price').addEventListener('change', (e) => {
     document.getElementById('old-price-settings').style.display = e.target.checked ? 'block' : 'none';
   });
@@ -114,10 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
     row.className = 'variant-row-dynamic';
     row.innerHTML = '<input type="text" class="variant-value" placeholder="Размер" style="width:40%;"><input type="number" class="variant-stock" placeholder="Остаток" value="0" style="width:40%;"><button type="button" class="btn-sm danger remove-variant">🗑</button>';
     container.appendChild(row);
-    row.querySelector('.remove-variant').addEventListener('click', () => {
-      row.remove();
-      updateTotalStock();
-    });
+    row.querySelector('.remove-variant').addEventListener('click', () => { row.remove(); updateTotalStock(); });
     row.querySelector('.variant-stock').addEventListener('input', updateTotalStock);
     updateTotalStock();
   });
@@ -146,7 +141,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const imageInputs = document.querySelectorAll('.product-image-extra');
     const images = Array.from(imageInputs).map(inp => inp.value.trim()).filter(v => v);
-
     const variantRows = document.querySelectorAll('.variant-row-dynamic');
     const options = [];
     variantRows.forEach(row => {
@@ -233,12 +227,56 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = '<p>Товаров пока нет.</p>';
         return;
       }
-      container.innerHTML = '<table><thead><tr><th>Фото</th><th>Название</th><th>Цена</th><th>Остаток</th><th>Бирка</th><th>Действия</th></tr></thead><tbody>' +
-        products.map(p => {
-          const oldPriceText = p.oldPrice && p.oldPrice > p.price ? `<br><span style="text-decoration:line-through;color:#999;">${p.oldPrice.toLocaleString()} ₽</span>` : '';
-          return '<tr><td data-label="Фото"><img src="' + p.image + '" alt="' + p.title + '"></td><td data-label="Название">' + p.title + '</td><td data-label="Цена">' + p.price.toLocaleString() + ' ₽' + oldPriceText + '</td><td data-label="Остаток">' + p.totalStock + '</td><td data-label="Бирка">' + (p.badge ? '<span class="badge-preview" style="background:' + p.badge.bgColor + ';color:' + p.badge.color + '">' + p.badge.text + '</span>' : '—') + '</td><td data-label="Действия" class="actions"><button class="btn-sm edit" data-id="' + p.id + '">✏️</button><button class="btn-sm danger delete" data-id="' + p.id + '">🗑</button></td></tr>';
-        }).join('') +
-        '</tbody></table>';
+
+      container.innerHTML = products.map(p => {
+        const allImages = [p.image, ...(p.images || [])];
+        const slidesHtml = allImages.map(url => `
+          <div class="card-gallery-slide">
+            <div class="blur-bg" style="background-image: url('${url}')"></div>
+            <img src="${url}" alt="${p.title}">
+          </div>
+        `).join('');
+        const dotsHtml = allImages.map((_, idx) => `<span class="card-dot${idx === 0 ? ' active' : ''}" data-index="${idx}"></span>`).join('');
+        const oldPriceText = p.oldPrice && p.oldPrice > p.price ? `<span style="text-decoration:line-through; color:#999;">${p.oldPrice.toLocaleString()} ₽</span>` : '';
+
+        return `
+          <div class="admin-product-card" data-id="${p.id}">
+            <div class="card-gallery">
+              <div class="card-gallery-slider">${slidesHtml}</div>
+              <div class="card-dots">${dotsHtml}</div>
+            </div>
+            <div class="admin-info">
+              <h3>${p.title}</h3>
+              <div class="meta">
+                <span>Цена: ${p.price.toLocaleString()} ₽ ${oldPriceText}</span>
+                <span>Остаток: ${p.totalStock}</span>
+                ${p.badge ? `<span class="badge-preview" style="background:${p.badge.bgColor};color:${p.badge.color}">${p.badge.text}</span>` : ''}
+              </div>
+              <div class="admin-actions">
+                <button class="btn-sm edit" data-id="${p.id}">✏️</button>
+                <button class="btn-sm danger delete" data-id="${p.id}">🗑</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.querySelectorAll('.admin-product-card .card-gallery-slider').forEach(slider => {
+        const dotsContainer = slider.nextElementSibling;
+        const dots = dotsContainer ? dotsContainer.querySelectorAll('.card-dot') : [];
+        slider.addEventListener('scroll', () => {
+          const index = Math.round(slider.scrollLeft / slider.clientWidth);
+          dots.forEach(dot => dot.classList.remove('active'));
+          if (dots[index]) dots[index].classList.add('active');
+        });
+        dots.forEach(dot => {
+          dot.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = parseInt(dot.dataset.index);
+            slider.scrollTo({ left: idx * slider.clientWidth, behavior: 'smooth' });
+          });
+        });
+      });
 
       container.querySelectorAll('.edit').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -328,15 +366,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function uploadImageToImgBB(file) {
-    if (file.size > MAX_FILE_SIZE) {
-      throw new Error('Файл слишком большой. Максимальный размер 32 МБ.');
-    }
+    if (file.size > MAX_FILE_SIZE) throw new Error('Файл слишком большой. Максимальный размер 32 МБ.');
     const formData = new FormData();
     formData.append('image', file);
-    const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-      method: 'POST',
-      body: formData
-    });
+    const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: 'POST', body: formData });
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
       throw new Error(err?.error?.message || 'Ошибка загрузки');
@@ -345,23 +378,14 @@ document.addEventListener('DOMContentLoaded', () => {
     return data.data.url;
   }
 
-  document.getElementById('upload-main-image-btn').addEventListener('click', () => {
-    document.getElementById('main-image-file').click();
-  });
+  document.getElementById('upload-main-image-btn').addEventListener('click', () => document.getElementById('main-image-file').click());
   document.getElementById('main-image-file').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    try {
-      const url = await uploadImageToImgBB(file);
-      document.getElementById('product-image').value = url;
-    } catch (err) {
-      alert('Ошибка загрузки: ' + err.message);
-    }
+    try { document.getElementById('product-image').value = await uploadImageToImgBB(file); } catch (err) { alert('Ошибка: ' + err.message); }
   });
 
-  document.getElementById('upload-extra-image-btn').addEventListener('click', () => {
-    document.getElementById('extra-image-file').click();
-  });
+  document.getElementById('upload-extra-image-btn').addEventListener('click', () => document.getElementById('extra-image-file').click());
   document.getElementById('extra-image-file').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -370,19 +394,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const container = document.getElementById('additional-images-container');
       const div = document.createElement('div');
       div.className = 'image-input-row';
-      div.innerHTML = '<input type="url" class="product-image-extra" value="' + url + '" style="width:80%;"><button type="button" class="btn-sm danger remove-image-btn">🗑</button>';
+      div.innerHTML = `<input type="url" class="product-image-extra" value="${url}" style="width:80%;"><button type="button" class="btn-sm danger remove-image-btn">🗑</button>`;
       container.appendChild(div);
       div.querySelector('.remove-image-btn').addEventListener('click', () => div.remove());
-    } catch (err) {
-      alert('Ошибка загрузки: ' + err.message);
-    }
+    } catch (err) { alert('Ошибка: ' + err.message); }
   });
 
   document.getElementById('add-image-btn').addEventListener('click', () => {
     const container = document.getElementById('additional-images-container');
     const div = document.createElement('div');
     div.className = 'image-input-row';
-    div.innerHTML = '<input type="url" class="product-image-extra" placeholder="URL изображения" style="width:80%; margin-right:5px;"><button type="button" class="btn-sm danger remove-image-btn">🗑</button>';
+    div.innerHTML = '<input type="url" class="product-image-extra" placeholder="URL изображения" style="width:80%;"><button type="button" class="btn-sm danger remove-image-btn">🗑</button>';
     container.appendChild(div);
     div.querySelector('.remove-image-btn').addEventListener('click', () => div.remove());
   });
@@ -394,18 +416,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const snapshot = await db.collection('orders').orderBy('createdAt', 'desc').limit(50).get();
       const orders = [];
       snapshot.forEach(doc => orders.push({ id: doc.id, ...doc.data() }));
-      if (orders.length === 0) {
-        container.innerHTML = '<p>Заказов пока нет.</p>';
-        return;
-      }
+      if (orders.length === 0) { container.innerHTML = '<p>Заказов пока нет.</p>'; return; }
       container.innerHTML = '<div class="orders-grid">' + orders.map(order => {
         const items = order.items || [];
         const itemsHtml = items.map(item => '<li>' + item.title + (item.variantName ? ' (' + item.variantName + ': ' + item.variantValue + ')' : '') + ' x' + item.qty + ' = ' + (item.price * item.qty).toLocaleString() + ' ₽</li>').join('');
         const date = order.createdAt ? new Date(order.createdAt.seconds * 1000).toLocaleString('ru-RU') : '—';
         return '<div class="order-card"><h3>Заказ №' + (order.orderNumber || order.id) + '</h3><p><strong>Дата:</strong> ' + date + '</p><p><strong>Статус:</strong> <span class="order-status">' + order.status + '</span></p><p><strong>Сумма:</strong> ' + order.amount + ' ' + order.currency + '</p><p><strong>Чек:</strong> ' + order.paymentId + '</p><p><strong>Покупатель:</strong> ' + order.customerName + '</p><p><strong>Телефон:</strong> ' + order.customerPhone + '</p><p><strong>Email:</strong> ' + (order.customerEmail || '—') + '</p><p><strong>Адрес:</strong> ' + order.deliveryAddress + '</p><ul>' + itemsHtml + '</ul></div>';
       }).join('') + '</div>';
-    } catch (err) {
-      container.innerHTML = '<p>Ошибка загрузки заказов: ' + err.message + '</p>';
-    }
+    } catch (err) { container.innerHTML = '<p>Ошибка загрузки заказов: ' + err.message + '</p>'; }
   }
 });

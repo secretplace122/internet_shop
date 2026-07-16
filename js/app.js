@@ -97,7 +97,12 @@ function renderProductsFromData(products, reviewsData) {
     const rev = reviewsData[p.id] || { avg: '0.0', count: 0 };
     const badgeHtml = p.badge ? `<span class="badge" style="background:${p.badge.bgColor};color:${p.badge.color}">${p.badge.text}</span>` : '';
     const allImages = [p.image, ...(p.images || [])];
-    const imagesHtml = allImages.map((url, idx) => `<img src="${url}" alt="${p.title}" data-index="${idx}">`).join('');
+    const slidesHtml = allImages.map(url => `
+      <div class="card-gallery-slide">
+        <div class="blur-bg" style="background-image: url('${url}')"></div>
+        <img src="${url}" alt="${p.title}">
+      </div>
+    `).join('');
     const dotsHtml = allImages.map((_, idx) => `<span class="card-dot${idx === 0 ? ' active' : ''}" data-index="${idx}"></span>`).join('');
 
     let variantsHtml = '';
@@ -107,7 +112,7 @@ function renderProductsFromData(products, reviewsData) {
       const available = firstVariant.options.find(o => o.stock > 0);
       const defaultOption = available || firstVariant.options[0];
       variantsHtml = `
-        <div class="variant-row" data-variant-name="${firstVariant.name}">
+        <div class="variant-row">
           ${firstVariant.options.map(opt => `
             <span class="variant-pill${opt.stock === 0 ? ' disabled' : ''}${opt.value === defaultOption.value ? ' active' : ''}"
                   data-value="${opt.value}" data-stock="${opt.stock}">
@@ -117,6 +122,7 @@ function renderProductsFromData(products, reviewsData) {
         </div>`;
       variantStockHtml = `<span class="variant-stock">Осталось: ${defaultOption.stock} шт.</span>`;
     } else {
+      variantsHtml = '<div class="variant-row-placeholder"></div>';
       variantStockHtml = `<span class="stock-badge">Осталось: ${p.stock || 0} шт.</span>`;
     }
 
@@ -133,12 +139,8 @@ function renderProductsFromData(products, reviewsData) {
     return `
       <div class="product-card" data-id="${p.id}">
         <div class="card-gallery">
-          <div class="card-gallery-slider" id="gallery-${p.id}">
-            ${imagesHtml}
-          </div>
-          <div class="card-dots" id="dots-${p.id}">
-            ${dotsHtml}
-          </div>
+          <div class="card-gallery-slider">${slidesHtml}</div>
+          <div class="card-dots">${dotsHtml}</div>
           ${badgeHtml}
         </div>
         <div class="product-info">
@@ -279,20 +281,19 @@ function subscribeToProducts() {
       }
     }
     updateAllCartControls();
-    if (document.getElementById('cart-modal').style.display === 'flex') {
-      renderCart();
-    }
-  }, (error) => {
-    console.error('Ошибка подписки на товары:', error);
-  });
+    if (document.getElementById('cart-modal').style.display === 'flex') renderCart();
+  }, (error) => console.error('Ошибка подписки на товары:', error));
 }
 
 function createProductCardHtml(product) {
-  const badgeHtml = product.badge ? `<span class="badge" style="background:${product.badge.bgColor};color:${product.badge.color}">${product.badge.text}</span>` : '';
   const allImages = [product.image, ...(product.images || [])];
-  const imagesHtml = allImages.map((url, idx) => `<img src="${url}" alt="${product.title}" data-index="${idx}">`).join('');
+  const slidesHtml = allImages.map(url => `
+    <div class="card-gallery-slide">
+      <div class="blur-bg" style="background-image: url('${url}')"></div>
+      <img src="${url}" alt="${product.title}">
+    </div>
+  `).join('');
   const dotsHtml = allImages.map((_, idx) => `<span class="card-dot${idx === 0 ? ' active' : ''}" data-index="${idx}"></span>`).join('');
-
   let variantsHtml = '';
   let variantStockHtml = '';
   if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
@@ -300,7 +301,7 @@ function createProductCardHtml(product) {
     const available = firstVariant.options.find(o => o.stock > 0);
     const defaultOption = available || firstVariant.options[0];
     variantsHtml = `
-      <div class="variant-row" data-variant-name="${firstVariant.name}">
+      <div class="variant-row">
         ${firstVariant.options.map(opt => `
           <span class="variant-pill${opt.stock === 0 ? ' disabled' : ''}${opt.value === defaultOption.value ? ' active' : ''}"
                 data-value="${opt.value}" data-stock="${opt.stock}">
@@ -310,9 +311,9 @@ function createProductCardHtml(product) {
       </div>`;
     variantStockHtml = `<span class="variant-stock">Осталось: ${defaultOption.stock} шт.</span>`;
   } else {
+    variantsHtml = '<div class="variant-row-placeholder"></div>';
     variantStockHtml = `<span class="stock-badge">Осталось: ${product.stock || 0} шт.</span>`;
   }
-
   let priceBlockHtml = `<div class="price">${product.price.toLocaleString()} ₽</div>`;
   if (product.oldPrice && product.oldPrice > product.price) {
     const discount = Math.round((1 - product.price / product.oldPrice) * 100);
@@ -322,17 +323,11 @@ function createProductCardHtml(product) {
       <div class="discount-badge">-${discount}%</div>
     `;
   }
-
   return `
     <div class="product-card" data-id="${product.id}">
       <div class="card-gallery">
-        <div class="card-gallery-slider" id="gallery-${product.id}">
-          ${imagesHtml}
-        </div>
-        <div class="card-dots" id="dots-${product.id}">
-          ${dotsHtml}
-        </div>
-        ${badgeHtml}
+        <div class="card-gallery-slider">${slidesHtml}</div>
+        <div class="card-dots">${dotsHtml}</div>
       </div>
       <div class="product-info">
         <h3>${product.title}</h3>
@@ -341,15 +336,12 @@ function createProductCardHtml(product) {
           <span class="rating-star">★</span>
           <span class="rating-value">0.0</span>
           <span class="review-icon">
-            <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-            0
+            <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg> 0
           </span>
         </div>
         ${variantStockHtml}
         ${variantsHtml}
-        <div class="price-block">
-          ${priceBlockHtml}
-        </div>
+        <div class="price-block">${priceBlockHtml}</div>
         <div class="cart-controls" id="controls-${product.id}"></div>
       </div>
     </div>
@@ -376,12 +368,18 @@ function updateProductCardFromData(card, product) {
     stockText = newActive ? `Осталось: ${newActive.dataset.stock} шт.` : 'Нет в наличии';
   } else {
     stockText = `Осталось: ${product.stock || 0} шт.`;
+    if (!card.querySelector('.variant-row-placeholder') && !card.querySelector('.variant-row')) {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'variant-row-placeholder';
+      const info = card.querySelector('.product-info');
+      const stockEl = info.querySelector('.variant-stock, .stock-badge');
+      if (stockEl) stockEl.insertAdjacentElement('afterend', placeholder);
+    }
   }
   const stockEl = card.querySelector('.variant-stock') || card.querySelector('.stock-badge');
   if (stockEl) stockEl.textContent = stockText;
   const controls = card.querySelector('.cart-controls');
   if (controls) controls.innerHTML = createCartControls(card, product);
-
   const priceBlock = card.querySelector('.price-block');
   if (priceBlock) {
     let html = `<div class="price">${product.price.toLocaleString()} ₽</div>`;
@@ -401,9 +399,7 @@ function getCachedProducts(ignoreExpiry = false) {
     if (!cache.timestamp || !Array.isArray(cache.products)) return null;
     if (!ignoreExpiry && Date.now() - cache.timestamp > CACHE_TTL) return null;
     return cache.products;
-  } catch (e) {
-    return null;
-  }
+  } catch (e) { return null; }
 }
 
 function setCachedProducts(products) {
@@ -411,16 +407,14 @@ function setCachedProducts(products) {
   localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
 }
 
-function clearProductsCache() {
-  localStorage.removeItem(CACHE_KEY);
-}
+function clearProductsCache() { localStorage.removeItem(CACHE_KEY); }
 
 function getSelectedVariant(productId) {
   const card = document.querySelector(`.product-card[data-id="${productId}"]`);
   if (!card) return null;
   const activePill = card.querySelector('.variant-pill.active');
   if (!activePill) return null;
-  const variantName = card.querySelector('.variant-row')?.dataset.variantName;
+  const variantName = card.querySelector('.variant-row')?.dataset?.variantName;
   return { name: variantName, value: activePill.dataset.value, stock: parseInt(activePill.dataset.stock) };
 }
 
@@ -441,37 +435,25 @@ function handleCartAction(e) {
   const productId = e.target.dataset.id || e.target.closest('.product-card').dataset.id;
   const product = currentProducts.find(p => p.id === productId);
   if (!product) return;
-
   const variant = getSelectedVariant(productId);
   const maxStock = variant ? variant.stock : (product.stock || 0);
-
-  if (action === 'add') {
-    if (maxStock <= 0) return;
-    addToCart(product, 1, variant);
-  } else if (action === 'increase') {
+  if (action === 'add') { if (maxStock <= 0) return; addToCart(product, 1, variant); }
+  else if (action === 'increase') {
     const cartItem = cart.find(item => item.id === productId && item.variant?.value === variant?.value);
-    if (cartItem && cartItem.qty < maxStock) {
-      addToCart(product, 1, variant);
-    }
-  } else if (action === 'decrease') {
+    if (cartItem && cartItem.qty < maxStock) addToCart(product, 1, variant);
+  }
+  else if (action === 'decrease') {
     const cartItem = cart.find(item => item.id === productId && item.variant?.value === variant?.value);
     if (cartItem) {
-      if (cartItem.qty > 1) {
-        addToCart(product, -1, variant);
-      } else {
-        removeFromCart(productId, variant);
-      }
+      if (cartItem.qty > 1) addToCart(product, -1, variant);
+      else removeFromCart(productId, variant);
     }
-  } else if (action === 'go-cart') {
-    document.getElementById('cart-modal').style.display = 'flex';
-    renderCart();
   }
+  else if (action === 'go-cart') { document.getElementById('cart-modal').style.display = 'flex'; renderCart(); }
   updateCartUI();
   updateCartControlsForCard(productId);
   updateAllCartControls();
-  if (document.getElementById('cart-modal').style.display === 'flex') {
-    renderCart();
-  }
+  if (document.getElementById('cart-modal').style.display === 'flex') renderCart();
 }
 
 function addToCart(product, delta = 1, variant = null) {
@@ -480,20 +462,10 @@ function addToCart(product, delta = 1, variant = null) {
   if (existing) {
     const newQty = existing.qty + delta;
     if (newQty > maxStock) return;
-    if (newQty <= 0) {
-      cart = cart.filter(item => !(item.id === product.id && item.variant?.value === variant?.value));
-    } else {
-      existing.qty = newQty;
-    }
+    if (newQty <= 0) cart = cart.filter(item => !(item.id === product.id && item.variant?.value === variant?.value));
+    else existing.qty = newQty;
   } else if (delta > 0 && maxStock >= delta) {
-    cart.push({
-      id: product.id,
-      title: product.title,
-      price: product.price,
-      image: product.image,
-      qty: delta,
-      variant: variant
-    });
+    cart.push({ id: product.id, title: product.title, price: product.price, image: product.image, qty: delta, variant: variant });
   }
   saveCart();
 }
@@ -508,26 +480,16 @@ function setupCart() {
   const modal = document.getElementById('cart-modal');
   const floatBtn = document.getElementById('cart-float-btn');
   const closeBtn = modal.querySelector('.close');
-
-  floatBtn.addEventListener('click', () => {
-    renderCart();
-    modal.style.display = 'flex';
-  });
+  floatBtn.addEventListener('click', () => { renderCart(); modal.style.display = 'flex'; });
   closeBtn.addEventListener('click', () => modal.style.display = 'none');
   window.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
-
   document.getElementById('checkout-btn').addEventListener('click', () => {
-    if (cart.length === 0) {
-      alert('Корзина пуста');
-      return;
-    }
-    modal.style.display = 'none';
-    showCheckoutForm();
+    if (cart.length === 0) alert('Корзина пуста');
+    else { modal.style.display = 'none'; showCheckoutForm(); }
   });
 }
 
 function saveCart() { localStorage.setItem('cart', JSON.stringify(cart)); }
-
 function updateCartUI() {
   const count = cart.reduce((sum, item) => sum + item.qty, 0);
   document.getElementById('cart-count').textContent = count;
@@ -537,17 +499,10 @@ function renderCart() {
   const container = document.getElementById('cart-items');
   const totalEl = document.getElementById('cart-total-price');
   if (!container || !totalEl) return;
-
-  if (cart.length === 0) {
-    container.innerHTML = '<p>Корзина пуста</p>';
-    totalEl.textContent = '0';
-    return;
-  }
-
+  if (cart.length === 0) { container.innerHTML = '<p>Корзина пуста</p>'; totalEl.textContent = '0'; return; }
   container.innerHTML = cart.map(item => {
     const product = currentProducts.find(p => p.id === item.id);
     let max = product ? (product.stock || 0) : 0;
-
     if (item.variant && product && Array.isArray(product.variants)) {
       const variant = product.variants.find(v => v.name === item.variant.name);
       if (variant && Array.isArray(variant.options)) {
@@ -555,7 +510,6 @@ function renderCart() {
         if (option) max = option.stock;
       }
     }
-
     return `
       <div class="cart-item">
         <div class="cart-item-info">
@@ -577,11 +531,7 @@ function renderCart() {
       </div>
     `;
   }).join('');
-
-  container.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', handleCartItemAction);
-  });
-
+  container.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', handleCartItemAction));
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   totalEl.textContent = total.toLocaleString();
 }
@@ -593,7 +543,6 @@ function handleCartItemAction(e) {
   const product = currentProducts.find(p => p.id === productId);
   const variant = variantValue && product ? { name: product?.variants?.[0]?.name, value: variantValue } : null;
   const cartItem = cart.find(item => item.id === productId && item.variant?.value === variant?.value);
-
   if (action === 'cart-increase' && cartItem && product) {
     let max = product.stock || 0;
     if (variant && Array.isArray(product.variants)) {
@@ -603,29 +552,16 @@ function handleCartItemAction(e) {
         if (option) max = option.stock;
       }
     }
-    if (cartItem.qty < max) {
-      cartItem.qty += 1;
-      saveCart();
-    }
+    if (cartItem.qty < max) { cartItem.qty += 1; saveCart(); }
   } else if (action === 'cart-decrease' && cartItem) {
-    if (cartItem.qty > 1) {
-      cartItem.qty -= 1;
-      saveCart();
-    } else {
-      removeFromCart(productId, variant);
-    }
-  } else if (action === 'cart-remove') {
-    removeFromCart(productId, variant);
-  }
-  renderCart();
-  updateCartUI();
-  updateAllCartControls();
+    if (cartItem.qty > 1) { cartItem.qty -= 1; saveCart(); }
+    else removeFromCart(productId, variant);
+  } else if (action === 'cart-remove') removeFromCart(productId, variant);
+  renderCart(); updateCartUI(); updateAllCartControls();
 }
 
 function updateAllCartControls() {
-  document.querySelectorAll('.product-card').forEach(card => {
-    updateCartControlsForCard(card.dataset.id);
-  });
+  document.querySelectorAll('.product-card').forEach(card => updateCartControlsForCard(card.dataset.id));
 }
 
 function showCheckoutForm() {
@@ -634,65 +570,39 @@ function showCheckoutForm() {
   overlay.className = 'modal';
   overlay.style.display = 'flex';
   overlay.id = 'checkout-modal';
-
   overlay.innerHTML = `
     <div class="modal-content">
       <button class="close" id="checkout-close">✕</button>
       <h2>Оформление заказа</h2>
       <form id="checkout-form">
-        <div class="order-form-group">
-          <label>Имя *</label>
-          <input type="text" id="customer-name" required placeholder="Иван Иванов">
-        </div>
-        <div class="order-form-group">
-          <label>Телефон *</label>
-          <input type="tel" id="customer-phone" required placeholder="+7 999 123-45-67">
-        </div>
-        <div class="order-form-group">
-          <label>Email</label>
-          <input type="email" id="customer-email" placeholder="email@example.com">
-        </div>
-        <div class="order-form-group">
-          <label>Адрес доставки *</label>
-          <textarea id="customer-address" rows="2" required placeholder="Город, улица, дом, квартира"></textarea>
-        </div>
+        <div class="order-form-group"><label>Имя *</label><input type="text" id="customer-name" required placeholder="Иван Иванов"></div>
+        <div class="order-form-group"><label>Телефон *</label><input type="tel" id="customer-phone" required placeholder="+7 999 123-45-67"></div>
+        <div class="order-form-group"><label>Email</label><input type="email" id="customer-email" placeholder="email@example.com"></div>
+        <div class="order-form-group"><label>Адрес доставки *</label><textarea id="customer-address" rows="2" required placeholder="Город, улица, дом, квартира"></textarea></div>
         <div class="order-total">Итого: ${total.toLocaleString()} ₽</div>
         <button type="submit" class="btn" id="pay-btn">Перейти к оплате</button>
       </form>
       <p id="checkout-error" class="error-message"></p>
     </div>
   `;
-
   document.body.appendChild(overlay);
-
   document.getElementById('checkout-close').addEventListener('click', () => overlay.remove());
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-
   document.getElementById('checkout-form').addEventListener('submit', async function (e) {
     e.preventDefault();
     const payBtn = document.getElementById('pay-btn');
     const errorEl = document.getElementById('checkout-error');
-    if (cart.length === 0) {
-      errorEl.textContent = 'Корзина пуста';
-      return;
-    }
+    if (cart.length === 0) { errorEl.textContent = 'Корзина пуста'; return; }
     payBtn.disabled = true;
     payBtn.textContent = 'Создаём платёж...';
     errorEl.textContent = '';
-
     const orderData = {
-      items: cart.map(item => ({
-        id: item.id,
-        qty: item.qty,
-        variantName: item.variant ? item.variant.name : null,
-        variantValue: item.variant ? item.variant.value : null
-      })),
+      items: cart.map(item => ({ id: item.id, qty: item.qty, variantName: item.variant ? item.variant.name : null, variantValue: item.variant ? item.variant.value : null })),
       customerName: document.getElementById('customer-name').value.trim(),
       customerPhone: document.getElementById('customer-phone').value.trim(),
       customerEmail: document.getElementById('customer-email').value.trim(),
       deliveryAddress: document.getElementById('customer-address').value.trim()
     };
-
     let timeoutId;
     try {
       const controller = new AbortController();
@@ -726,9 +636,7 @@ function showCheckoutForm() {
         saveCart();
         updateCartUI();
         window.location.href = result.confirmationUrl;
-      } else {
-        throw new Error('Нет ссылки на оплату');
-      }
+      } else throw new Error('Нет ссылки на оплату');
     } catch (err) {
       clearTimeout(timeoutId);
       errorEl.textContent = 'Ошибка: ' + err.message;

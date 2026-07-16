@@ -46,12 +46,27 @@
   -webkit-overflow-scrolling: touch;
 }
 .gallery-slider::-webkit-scrollbar { display: none; }
-.gallery-slider img {
+.gallery-slide {
   flex: 0 0 100%;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  scroll-snap-align: start;
+  position: relative;
+  overflow: hidden;
+}
+.gallery-slide .blur-bg {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background-size: cover;
+  background-position: center;
+  filter: blur(10px);
+  opacity: 0.6;
+}
+.gallery-slide img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .gallery-dots {
@@ -67,7 +82,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.6);
+  background: rgba(180,180,180,0.8);
   transition: background 0.2s, transform 0.2s;
 }
 .gallery-dot.active {
@@ -169,7 +184,7 @@
   color: var(--text-light);
   margin-bottom: 16px;
   padding: 4px 10px;
-  background: var(--light-bg);
+  background: rgba(0,0,0,0.02);
   border-radius: 16px;
   display: inline-block;
 }

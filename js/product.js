@@ -38,15 +38,10 @@ document.querySelectorAll('#star-rating span').forEach(star => {
 });
 
 function highlightStars(rating) {
-  document.querySelectorAll('#star-rating span').forEach(s => {
-    s.classList.toggle('active', parseInt(s.dataset.rating) <= rating);
-  });
+  document.querySelectorAll('#star-rating span').forEach(s => s.classList.toggle('active', parseInt(s.dataset.rating) <= rating));
 }
-
 function updateStars() {
-  document.querySelectorAll('#star-rating span').forEach(s => {
-    s.classList.toggle('active', parseInt(s.dataset.rating) <= selectedRating);
-  });
+  document.querySelectorAll('#star-rating span').forEach(s => s.classList.toggle('active', parseInt(s.dataset.rating) <= selectedRating));
 }
 
 const PRODUCT_CACHE_PREFIX = 'productCache_';
@@ -96,39 +91,30 @@ async function loadProduct() {
       return;
     }
     const doc = await db.collection('products').doc(productId).get();
-    if (!doc.exists) {
-      document.body.innerHTML = 'Товар не найден';
-      return;
-    }
+    if (!doc.exists) { document.body.innerHTML = 'Товар не найден'; return; }
     product = { id: doc.id, ...doc.data() };
     setCachedProduct(productId, product);
     afterProductLoad();
   } catch (err) {
     console.error(err);
     const cached = getCachedProduct(productId);
-    if (cached) {
-      product = { id: productId, ...cached };
-      afterProductLoad();
-    }
+    if (cached) { product = { id: productId, ...cached }; afterProductLoad(); }
   }
 }
 
 function subscribeToProduct() {
   if (unsubscribeProduct) unsubscribeProduct();
-  unsubscribeProduct = db.collection('products').doc(productId)
-    .onSnapshot((doc) => {
-      if (doc.exists) {
-        const newData = doc.data();
-        setCachedProduct(productId, newData);
-        product = { id: productId, ...newData };
-        updateProductInfo();
-        loadReviewsData();
-      } else {
-        document.body.innerHTML = 'Товар больше не доступен';
-      }
-    }, (err) => {
-      console.error('Ошибка подписки на товар:', err);
-    });
+  unsubscribeProduct = db.collection('products').doc(productId).onSnapshot((doc) => {
+    if (doc.exists) {
+      const newData = doc.data();
+      setCachedProduct(productId, newData);
+      product = { id: productId, ...newData };
+      updateProductInfo();
+      loadReviewsData();
+    } else {
+      document.body.innerHTML = 'Товар больше не доступен';
+    }
+  });
 }
 
 function updateProductInfo() {
@@ -156,40 +142,19 @@ function updateProductInfo() {
     const variant = product.variants[0];
     const options = variant.options;
     const activeValue = selectedVariant && options.some(o => o.value === selectedVariant.value && o.stock > 0)
-      ? selectedVariant.value
-      : (options.find(o => o.stock > 0) || options[0])?.value;
-    if (container) {
-      container.innerHTML = options.map(opt =>
-        `<span class="variant-pill${opt.value === activeValue ? ' active' : ''}${opt.stock === 0 ? ' disabled' : ''}"
-               data-value="${opt.value}" data-stock="${opt.stock}">
-           ${opt.value}
-         </span>`
-      ).join('');
-    }
+      ? selectedVariant.value : (options.find(o => o.stock > 0) || options[0])?.value;
+    if (container) container.innerHTML = options.map(opt => `<span class="variant-pill${opt.value === activeValue ? ' active' : ''}${opt.stock === 0 ? ' disabled' : ''}" data-value="${opt.value}" data-stock="${opt.stock}">${opt.value}</span>`).join('');
     const activeOption = options.find(o => o.value === activeValue);
-    if (activeOption) {
-      selectedVariant = { name: variant.name, value: activeOption.value };
-      currentMaxStock = activeOption.stock;
-      if (stockInfo) stockInfo.textContent = `Доступно: ${activeOption.stock} шт.`;
-    } else {
-      selectedVariant = null;
-      currentMaxStock = 0;
-      if (stockInfo) stockInfo.textContent = 'Нет в наличии';
-    }
-    if (container) {
-      container.querySelectorAll('.variant-pill:not(.disabled)').forEach(pill => {
-        pill.addEventListener('click', () => {
-          container.querySelectorAll('.variant-pill').forEach(p => p.classList.remove('active'));
-          pill.classList.add('active');
-          const value = pill.dataset.value;
-          const stock = parseInt(pill.dataset.stock);
-          selectedVariant = { name: variant.name, value };
-          currentMaxStock = stock;
-          if (stockInfo) stockInfo.textContent = `Доступно: ${stock} шт.`;
-          updateControlsForStock(stock);
-        });
-      });
-    }
+    if (activeOption) { selectedVariant = { name: variant.name, value: activeOption.value }; currentMaxStock = activeOption.stock; if (stockInfo) stockInfo.textContent = `Доступно: ${activeOption.stock} шт.`; }
+    else { selectedVariant = null; currentMaxStock = 0; if (stockInfo) stockInfo.textContent = 'Нет в наличии'; }
+    if (container) container.querySelectorAll('.variant-pill:not(.disabled)').forEach(pill => pill.addEventListener('click', () => {
+      container.querySelectorAll('.variant-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      const value = pill.dataset.value; const stock = parseInt(pill.dataset.stock);
+      selectedVariant = { name: variant.name, value }; currentMaxStock = stock;
+      if (stockInfo) stockInfo.textContent = `Доступно: ${stock} шт.`;
+      updateControlsForStock(stock);
+    }));
   } else {
     currentMaxStock = product.stock || 0;
     if (stockInfo) stockInfo.textContent = `Осталось: ${currentMaxStock} шт.`;
@@ -200,18 +165,19 @@ function updateProductInfo() {
 function renderGallery() {
   const slider = document.getElementById('gallery-slider');
   const dotsContainer = document.getElementById('gallery-dots');
-  slider.innerHTML = galleryImages.map(url => `<img src="${url}" alt="">`).join('');
-  dotsContainer.innerHTML = galleryImages.map((_, idx) =>
-    `<span class="gallery-dot${idx === 0 ? ' active' : ''}" data-index="${idx}"></span>`
-  ).join('');
+  slider.innerHTML = galleryImages.map(url => `
+    <div class="gallery-slide">
+      <div class="blur-bg" style="background-image: url('${url}')"></div>
+      <img src="${url}" alt="">
+    </div>
+  `).join('');
+  dotsContainer.innerHTML = galleryImages.map((_, idx) => `<span class="gallery-dot${idx === 0 ? ' active' : ''}" data-index="${idx}"></span>`).join('');
   currentGalleryIndex = 0;
   slider.scrollLeft = 0;
-  document.querySelectorAll('.gallery-dot').forEach(dot => {
-    dot.addEventListener('click', () => {
-      const idx = parseInt(dot.dataset.index);
-      slider.scrollTo({ left: idx * slider.clientWidth, behavior: 'smooth' });
-    });
-  });
+  document.querySelectorAll('.gallery-dot').forEach(dot => dot.addEventListener('click', () => {
+    const idx = parseInt(dot.dataset.index);
+    slider.scrollTo({ left: idx * slider.clientWidth, behavior: 'smooth' });
+  }));
   slider.addEventListener('scroll', () => {
     const idx = Math.round(slider.scrollLeft / slider.clientWidth);
     if (idx !== currentGalleryIndex) {
@@ -239,27 +205,17 @@ function setupGallery() {
 function afterProductLoad() {
   loadReviewsData().then(() => {
     renderProduct();
-    if (product.variants && product.variants.length > 0) {
-      setupVariantSelector();
-    } else {
-      currentMaxStock = product.stock || 0;
-      updateControlsForStock(currentMaxStock);
-    }
+    if (product.variants && product.variants.length > 0) setupVariantSelector();
+    else { currentMaxStock = product.stock || 0; updateControlsForStock(currentMaxStock); }
     updateCartUI();
   });
 }
 
 async function loadReviewsData() {
   try {
-    const snapshot = await db.collection('reviews')
-      .where('productId', '==', productId)
-      .where('approved', '==', true)
-      .get();
+    const snapshot = await db.collection('reviews').where('productId', '==', productId).where('approved', '==', true).get();
     let totalRating = 0, count = 0;
-    snapshot.forEach(doc => {
-      totalRating += doc.data().rating;
-      count++;
-    });
+    snapshot.forEach(doc => { totalRating += doc.data().rating; count++; });
     const avg = count > 0 ? (totalRating / count).toFixed(1) : '0.0';
     document.getElementById('avg-rating').textContent = avg;
     document.getElementById('review-count').textContent = count;
@@ -270,16 +226,12 @@ function renderProduct() {
   document.getElementById('product-title').textContent = product.title;
   document.getElementById('product-description').textContent = product.description;
   document.getElementById('product-price').textContent = product.price.toLocaleString() + ' ₽';
-
   if (product.oldPrice && product.oldPrice > product.price) {
     const discount = Math.round((1 - product.price / product.oldPrice) * 100);
     document.getElementById('old-price-value').textContent = product.oldPrice.toLocaleString() + ' ₽';
     document.getElementById('discount-badge').textContent = '-' + discount + '%';
     document.getElementById('old-price-block').style.display = 'flex';
-  } else {
-    document.getElementById('old-price-block').style.display = 'none';
-  }
-
+  } else document.getElementById('old-price-block').style.display = 'none';
   galleryImages = [product.image, ...(product.images || [])];
   renderGallery();
 }
@@ -289,40 +241,20 @@ function setupVariantSelector() {
   if (!container) return;
   const variant = product.variants[0];
   const options = variant.options;
-
   const firstAvailable = options.find(o => o.stock > 0);
   const activeValue = firstAvailable ? firstAvailable.value : (options.length ? options[0].value : null);
-
-  container.innerHTML = options.map(opt =>
-    `<span class="variant-pill ${opt.value === activeValue ? ' active' : ''} ${opt.stock === 0 ? ' disabled' : ''}"
-           data-value="${opt.value}" data-stock="${opt.stock}">
-       ${opt.value}
-     </span>`
-  ).join('');
-
-  if (firstAvailable) {
-    selectedVariant = { name: variant.name, value: firstAvailable.value };
-    currentMaxStock = firstAvailable.stock;
-    document.getElementById('stock-info').textContent = `Доступно: ${firstAvailable.stock} шт.`;
-  } else {
-    selectedVariant = null;
-    currentMaxStock = 0;
-    document.getElementById('stock-info').textContent = 'Нет в наличии';
-  }
+  container.innerHTML = options.map(opt => `<span class="variant-pill ${opt.value === activeValue ? ' active' : ''} ${opt.stock === 0 ? ' disabled' : ''}" data-value="${opt.value}" data-stock="${opt.stock}">${opt.value}</span>`).join('');
+  if (firstAvailable) { selectedVariant = { name: variant.name, value: firstAvailable.value }; currentMaxStock = firstAvailable.stock; document.getElementById('stock-info').textContent = `Доступно: ${firstAvailable.stock} шт.`; }
+  else { selectedVariant = null; currentMaxStock = 0; document.getElementById('stock-info').textContent = 'Нет в наличии'; }
   updateControlsForStock(currentMaxStock);
-
-  container.querySelectorAll('.variant-pill:not(.disabled)').forEach(pill => {
-    pill.addEventListener('click', () => {
-      container.querySelectorAll('.variant-pill').forEach(p => p.classList.remove('active'));
-      pill.classList.add('active');
-      const value = pill.dataset.value;
-      const stock = parseInt(pill.dataset.stock);
-      selectedVariant = { name: variant.name, value };
-      currentMaxStock = stock;
-      document.getElementById('stock-info').textContent = `Доступно: ${stock} шт.`;
-      updateControlsForStock(stock);
-    });
-  });
+  container.querySelectorAll('.variant-pill:not(.disabled)').forEach(pill => pill.addEventListener('click', () => {
+    container.querySelectorAll('.variant-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    const value = pill.dataset.value; const stock = parseInt(pill.dataset.stock);
+    selectedVariant = { name: variant.name, value }; currentMaxStock = stock;
+    document.getElementById('stock-info').textContent = `Доступно: ${stock} шт.`;
+    updateControlsForStock(stock);
+  }));
 }
 
 function getCartQuantity(variant) {
@@ -338,18 +270,12 @@ function updateControlsForStock(maxStock) {
   const decreaseBtn = document.getElementById('qty-decrease');
   const increaseBtn = document.getElementById('qty-increase');
   const messageEl = document.getElementById('product-message');
-
   if (!picker) return;
-
   const currentQty = getCartQuantity(selectedVariant);
-
   if (maxStock <= 0) {
-    picker.style.display = 'none';
-    if (goToCartBtn) goToCartBtn.style.display = 'none';
-    messageEl.textContent = 'Нет в наличии';
-    return;
+    picker.style.display = 'none'; if (goToCartBtn) goToCartBtn.style.display = 'none';
+    messageEl.textContent = 'Нет в наличии'; return;
   }
-
   picker.style.display = 'flex';
   qtyValueEl.textContent = currentQty;
   decreaseBtn.disabled = currentQty <= 0;
@@ -368,13 +294,8 @@ function setupAddToCart() {
     if (!product) return;
     const currentQty = getCartQuantity(selectedVariant);
     if (currentQty <= 0) return;
-
-    if (currentQty === 1) {
-      cart = cart.filter(i => !(i.id === product.id && i.variant?.value === (selectedVariant ? selectedVariant.value : undefined)));
-    } else {
-      const item = cart.find(i => i.id === product.id && i.variant?.value === (selectedVariant ? selectedVariant.value : undefined));
-      if (item) item.qty = currentQty - 1;
-    }
+    if (currentQty === 1) cart = cart.filter(i => !(i.id === product.id && i.variant?.value === (selectedVariant ? selectedVariant.value : undefined)));
+    else { const item = cart.find(i => i.id === product.id && i.variant?.value === (selectedVariant ? selectedVariant.value : undefined)); if (item) item.qty = currentQty - 1; }
     localStorage.setItem('cart', JSON.stringify(cart));
     updateControlsForStock(currentMaxStock);
     updateCartUI();
@@ -385,36 +306,17 @@ function setupAddToCart() {
     if (!product) return;
     const currentQty = getCartQuantity(selectedVariant);
     const maxStock = currentMaxStock;
-    if (currentQty >= maxStock) {
-      messageEl.textContent = `Максимально доступно: ${maxStock}`;
-      return;
-    }
-
+    if (currentQty >= maxStock) { messageEl.textContent = `Максимально доступно: ${maxStock}`; return; }
     const item = cart.find(i => i.id === product.id && i.variant?.value === (selectedVariant ? selectedVariant.value : undefined));
-    if (item) {
-      item.qty = currentQty + 1;
-    } else {
-      cart.push({
-        id: product.id,
-        title: product.title,
-        price: product.price,
-        image: product.image,
-        qty: 1,
-        variant: selectedVariant
-      });
-    }
+    if (item) item.qty = currentQty + 1;
+    else cart.push({ id: product.id, title: product.title, price: product.price, image: product.image, qty: 1, variant: selectedVariant });
     localStorage.setItem('cart', JSON.stringify(cart));
     updateControlsForStock(maxStock);
     updateCartUI();
     messageEl.textContent = 'Товар добавлен в корзину!';
   });
 
-  if (goToCartBtn) {
-    goToCartBtn.addEventListener('click', () => {
-      document.getElementById('cart-modal').style.display = 'flex';
-      renderCart();
-    });
-  }
+  if (goToCartBtn) goToCartBtn.addEventListener('click', () => { document.getElementById('cart-modal').style.display = 'flex'; renderCart(); });
 }
 
 function setupCart() {
@@ -422,70 +324,47 @@ function setupCart() {
   const modal = document.getElementById('cart-modal');
   const floatBtn = document.getElementById('cart-float-btn');
   const closeBtn = modal.querySelector('.close');
-
-  floatBtn.addEventListener('click', () => {
-    renderCart();
-    modal.style.display = 'flex';
-  });
+  floatBtn.addEventListener('click', () => { renderCart(); modal.style.display = 'flex'; });
   closeBtn.addEventListener('click', () => modal.style.display = 'none');
   window.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
-
   document.getElementById('checkout-btn').addEventListener('click', () => {
-    if (cart.length === 0) {
-      alert('Корзина пуста');
-      return;
-    }
-    localStorage.removeItem(PRODUCT_CACHE_PREFIX + productId);
-    window.location.href = 'index.html?checkout=open';
+    if (cart.length === 0) alert('Корзина пуста');
+    else { localStorage.removeItem(PRODUCT_CACHE_PREFIX + productId); window.location.href = 'index.html?checkout=open'; }
   });
 }
 
 function updateCartUI() {
   const count = cart.reduce((sum, item) => sum + item.qty, 0);
-  const badge = document.getElementById('cart-count');
-  if (badge) badge.textContent = count;
+  document.getElementById('cart-count').textContent = count;
 }
 
 function renderCart() {
   const container = document.getElementById('cart-items');
   const totalEl = document.getElementById('cart-total-price');
   if (!container || !totalEl) return;
-
-  if (cart.length === 0) {
-    container.innerHTML = '<p>Корзина пуста</p>';
-    totalEl.textContent = '0';
-    return;
-  }
-
-  container.innerHTML = cart.map(item => {
-    return `
-      <div class="cart-item">
-        <div class="cart-item-info">
-          <img src="${item.image}" alt="${item.title}" class="cart-item-image">
-          <div class="cart-item-details">
-            <div class="cart-item-title">${item.title}</div>
-            ${item.variant ? `<div class="cart-item-variant">${item.variant.name}: ${item.variant.value}</div>` : ''}
-            <div class="cart-item-price">${item.price.toLocaleString()} ₽</div>
-          </div>
-        </div>
-        <div class="cart-item-actions">
-          <div class="cart-item-qty">
-            <button class="cart-qty-btn" data-action="cart-decrease" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">−</button>
-            <span>${item.qty}</span>
-            <button class="cart-qty-btn" data-action="cart-increase" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">+</button>
-          </div>
-          <button class="cart-remove-btn" data-action="cart-remove" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">🗑</button>
+  if (cart.length === 0) { container.innerHTML = '<p>Корзина пуста</p>'; totalEl.textContent = '0'; return; }
+  container.innerHTML = cart.map(item => `
+    <div class="cart-item">
+      <div class="cart-item-info">
+        <img src="${item.image}" alt="${item.title}" class="cart-item-image">
+        <div class="cart-item-details">
+          <div class="cart-item-title">${item.title}</div>
+          ${item.variant ? `<div class="cart-item-variant">${item.variant.name}: ${item.variant.value}</div>` : ''}
+          <div class="cart-item-price">${item.price.toLocaleString()} ₽</div>
         </div>
       </div>
-    `;
-  }).join('');
-
+      <div class="cart-item-actions">
+        <div class="cart-item-qty">
+          <button class="cart-qty-btn" data-action="cart-decrease" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">−</button>
+          <span>${item.qty}</span>
+          <button class="cart-qty-btn" data-action="cart-increase" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">+</button>
+        </div>
+        <button class="cart-remove-btn" data-action="cart-remove" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">🗑</button>
+      </div>
+    </div>
+  `).join('');
   const actionButtons = container.querySelectorAll('[data-action]');
-  actionButtons.forEach(btn => {
-    btn.removeEventListener('click', handleCartAction);
-    btn.addEventListener('click', handleCartAction);
-  });
-
+  actionButtons.forEach(btn => { btn.removeEventListener('click', handleCartAction); btn.addEventListener('click', handleCartAction); });
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   totalEl.textContent = total.toLocaleString();
 }
@@ -496,74 +375,40 @@ function handleCartAction(e) {
   const variantValue = e.target.dataset.variantValue;
   const item = cart.find(i => i.id === productId && i.variant?.value === variantValue);
   if (!item) return;
-
-  if (action === 'cart-increase') {
-    item.qty += 1;
-  } else if (action === 'cart-decrease') {
-    if (item.qty > 1) {
-      item.qty -= 1;
-    } else {
-      cart = cart.filter(i => !(i.id === productId && i.variant?.value === variantValue));
-    }
-  } else if (action === 'cart-remove') {
-    cart = cart.filter(i => !(i.id === productId && i.variant?.value === variantValue));
-  }
+  if (action === 'cart-increase') { item.qty += 1; }
+  else if (action === 'cart-decrease') { if (item.qty > 1) item.qty -= 1; else cart = cart.filter(i => !(i.id === productId && i.variant?.value === variantValue)); }
+  else if (action === 'cart-remove') { cart = cart.filter(i => !(i.id === productId && i.variant?.value === variantValue)); }
   localStorage.setItem('cart', JSON.stringify(cart));
-  updateCartUI();
-  renderCart();
-  if (product && productId === product.id) {
-    updateControlsForStock(currentMaxStock);
-  }
+  updateCartUI(); renderCart();
+  if (product && productId === product.id) updateControlsForStock(currentMaxStock);
 }
 
 async function loadReviews() {
   const container = document.getElementById('reviews-list');
   try {
-    const snapshot = await db.collection('reviews')
-      .where('productId', '==', productId)
-      .where('approved', '==', true)
-      .orderBy('createdAt', 'desc')
-      .get();
+    const snapshot = await db.collection('reviews').where('productId', '==', productId).where('approved', '==', true).orderBy('createdAt', 'desc').get();
     const reviews = [];
     snapshot.forEach(doc => reviews.push(doc.data()));
-    if (!reviews.length) {
-      container.innerHTML = '<p>Пока нет отзывов.</p>';
-      return;
-    }
-    container.innerHTML = reviews.map(r => `
+    if (!reviews.length) container.innerHTML = '<p>Пока нет отзывов.</p>';
+    else container.innerHTML = reviews.map(r => `
       <div class="review-card">
         <div class="review-author">${r.author}</div>
         <div class="review-rating">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</div>
         <div class="review-text">${r.text}</div>
       </div>
     `).join('');
-  } catch (err) {
-    container.innerHTML = '<p>Ошибка загрузки отзывов</p>';
-  }
+  } catch (err) { container.innerHTML = '<p>Ошибка загрузки отзывов</p>'; }
 }
 
 function submitReview() {
   const author = document.getElementById('review-author').value.trim();
   const text = document.getElementById('review-text').value.trim();
-  if (!author || !text || selectedRating === 0) {
-    document.getElementById('review-message').textContent = 'Заполните все поля и поставьте оценку';
-    return;
-  }
+  if (!author || !text || selectedRating === 0) { document.getElementById('review-message').textContent = 'Заполните все поля и поставьте оценку'; return; }
   db.collection('reviews').add({
-    productId,
-    author,
-    text,
-    rating: selectedRating,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    approved: true
+    productId, author, text, rating: selectedRating, createdAt: firebase.firestore.FieldValue.serverTimestamp(), approved: true
   }).then(() => {
     document.getElementById('review-message').textContent = 'Спасибо за отзыв!';
-    document.getElementById('review-author').value = '';
-    document.getElementById('review-text').value = '';
-    selectedRating = 0;
-    updateStars();
-    loadReviews();
-  }).catch(err => {
-    document.getElementById('review-message').textContent = 'Ошибка: ' + err.message;
-  });
+    document.getElementById('review-author').value = ''; document.getElementById('review-text').value = '';
+    selectedRating = 0; updateStars(); loadReviews();
+  }).catch(err => { document.getElementById('review-message').textContent = 'Ошибка: ' + err.message; });
 }
