@@ -238,6 +238,10 @@ document.addEventListener('DOMContentLoaded', () => {
         `).join('');
         const dotsHtml = allImages.map((_, idx) => `<span class="card-dot${idx === 0 ? ' active' : ''}" data-index="${idx}"></span>`).join('');
         const oldPriceText = p.oldPrice && p.oldPrice > p.price ? `<span style="text-decoration:line-through; color:#999;">${p.oldPrice.toLocaleString()} ₽</span>` : '';
+        const variantsText = p.variants && p.variants.length > 0
+          ? p.variants[0].options.map(opt => `${opt.value}: ${opt.stock} шт.`).join(', ')
+          : '';
+        const badgeHtml = p.badge ? `<span class="badge-preview" style="background:${p.badge.bgColor};color:${p.badge.color}">${p.badge.text}</span>` : '';
 
         return `
           <div class="admin-product-card" data-id="${p.id}">
@@ -249,9 +253,10 @@ document.addEventListener('DOMContentLoaded', () => {
               <h3>${p.title}</h3>
               <div class="meta">
                 <span>Цена: ${p.price.toLocaleString()} ₽ ${oldPriceText}</span>
-                <span>Остаток: ${p.totalStock}</span>
-                ${p.badge ? `<span class="badge-preview" style="background:${p.badge.bgColor};color:${p.badge.color}">${p.badge.text}</span>` : ''}
+                <span>Всего: ${p.totalStock}</span>
+                ${variantsText ? `<div class="variants-list">${variantsText}</div>` : ''}
               </div>
+              ${badgeHtml}
               <div class="admin-actions">
                 <button class="btn-sm edit" data-id="${p.id}">✏️</button>
                 <button class="btn-sm danger delete" data-id="${p.id}">🗑</button>

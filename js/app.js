@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   await checkDataVersion();
   const urlParams = new URLSearchParams(window.location.search);
   const forceRefresh = urlParams.has('refresh');
+  if (urlParams.get('checkout') === 'open') {
+    setTimeout(() => showCheckoutForm(), 500);
+  }
   await loadProductsFromFirestore(forceRefresh);
   setupCart();
   subscribeToProducts();
@@ -439,11 +442,11 @@ function handleCartAction(e) {
   const maxStock = variant ? variant.stock : (product.stock || 0);
   if (action === 'add') { if (maxStock <= 0) return; addToCart(product, 1, variant); }
   else if (action === 'increase') {
-    const cartItem = cart.find(item => item.id === productId && item.variant?.value === variant?.value);
+    const cartItem = cart.find(item => item.id === productId && (variant ? item.variant?.value === variant.value : !item.variant));
     if (cartItem && cartItem.qty < maxStock) addToCart(product, 1, variant);
   }
   else if (action === 'decrease') {
-    const cartItem = cart.find(item => item.id === productId && item.variant?.value === variant?.value);
+    const cartItem = cart.find(item => item.id === productId && (variant ? item.variant?.value === variant.value : !item.variant));
     if (cartItem) {
       if (cartItem.qty > 1) addToCart(product, -1, variant);
       else removeFromCart(productId, variant);
@@ -457,21 +460,31 @@ function handleCartAction(e) {
 }
 
 function addToCart(product, delta = 1, variant = null) {
-  const existing = cart.find(item => item.id === product.id && item.variant?.value === variant?.value);
   const maxStock = variant ? variant.stock : (product.stock || 0);
-  if (existing) {
-    const newQty = existing.qty + delta;
-    if (newQty > maxStock) return;
-    if (newQty <= 0) cart = cart.filter(item => !(item.id === product.id && item.variant?.value === variant?.value));
-    else existing.qty = newQty;
-  } else if (delta > 0 && maxStock >= delta) {
-    cart.push({ id: product.id, title: product.title, price: product.price, image: product.image, qty: delta, variant: variant });
+  if (maxStock <= 0) return;
+  const existing = cart.find(item => item.id === product.id && (variant ? item.variant?.value === variant.value : !item.variant));
+  const currentQty = existing ? existing.qty : 0;
+  const newQty = currentQty + delta;
+  if (newQty > maxStock) return;
+  if (newQty <= 0) {
+    cart = cart.filter(item => !(item.id === product.id && (variant ? item.variant?.value === variant.value : !item.variant)));
+  } else if (existing) {
+    existing.qty = newQty;
+  } else {
+    cart.push({
+      id: product.id,
+      title: product.title,
+      price: product.price,
+      image: product.images?.[0] || product.image,
+      qty: delta,
+      variant: variant ? { name: variant.name, value: variant.value } : null
+    });
   }
   saveCart();
 }
 
 function removeFromCart(productId, variant = null) {
-  cart = cart.filter(item => !(item.id === productId && item.variant?.value === variant?.value));
+  cart = cart.filter(item => !(item.id === productId && (variant ? item.variant?.value === variant.value : !item.variant)));
   saveCart();
 }
 
@@ -542,7 +555,7 @@ function handleCartItemAction(e) {
   const variantValue = e.target.dataset.variantValue;
   const product = currentProducts.find(p => p.id === productId);
   const variant = variantValue && product ? { name: product?.variants?.[0]?.name, value: variantValue } : null;
-  const cartItem = cart.find(item => item.id === productId && item.variant?.value === variant?.value);
+  const cartItem = cart.find(item => item.id === productId && (variant ? item.variant?.value === variant.value : !item.variant));
   if (action === 'cart-increase' && cartItem && product) {
     let max = product.stock || 0;
     if (variant && Array.isArray(product.variants)) {
