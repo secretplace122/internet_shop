@@ -23,10 +23,10 @@
   <main class="product-main container">
     <div class="product-gallery" id="product-gallery">
       <div class="gallery-container">
-        <img id="main-image" src="https://img.magnific.com/premium-vector/beautiful-landscape-nature-background-images-free-download-freepik-vector_1305309-1561.jpg" alt="Футболка" class="gallery-main-image">
-        <div class="gallery-thumbs" id="gallery-thumbs">
-          <img src="https://img.magnific.com/premium-vector/beautiful-landscape-nature-background-images-free-download-freepik-vector_1305309-1561.jpg" class="gallery-thumb active" data-index="0" loading="lazy">
+        <div class="gallery-slider" id="gallery-slider">
+          <img id="main-image" src="https://img.magnific.com/premium-vector/beautiful-landscape-nature-background-images-free-download-freepik-vector_1305309-1561.jpg" alt="Футболка" class="gallery-main-image">
         </div>
+        <div class="gallery-dots" id="gallery-dots"></div>
         <button class="gallery-arrow left" id="gallery-left">‹</button>
         <button class="gallery-arrow right" id="gallery-right">›</button>
       </div>
@@ -43,6 +43,10 @@
       </div>
       <p id="product-description">1</p>
       <div class="product-price" id="product-price">123 ₽</div>
+      <div class="old-price-block" id="old-price-block" style="display:none;">
+        <span class="old-price" id="old-price-value"></span>
+        <span class="discount-badge" id="discount-badge"></span>
+      </div>
       <div class="variant-pills" id="variant-pills">
         <span class="variant-pill active"
                data-value="4" data-stock="4">
