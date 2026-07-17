@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const forceRefresh = urlParams.has('refresh');
   await loadProductsFromFirestore(forceRefresh);
   setupCart();
+  setupFilters();
   subscribeToProducts();
   if (urlParams.get('checkout') === 'open') {
     setTimeout(() => showCheckoutForm(), 500);
@@ -87,6 +88,75 @@ async function fetchReviewsData(productIds) {
   } catch (e) {
     return {};
   }
+}
+
+function applyFilters() {
+  const priceSlider = document.getElementById('filter-price');
+  const ratingSelect = document.getElementById('filter-rating');
+  const saleCheckbox = document.getElementById('filter-sale');
+  if (!priceSlider || !ratingSelect || !saleCheckbox) return currentProducts;
+  const maxPrice = parseInt(priceSlider.value);
+  const minRating = parseInt(ratingSelect.value);
+  const saleOnly = saleCheckbox.checked;
+  return currentProducts.filter(p => {
+    if (maxPrice && p.price > maxPrice) return false;
+    if (saleOnly && !p.sale) return false;
+    if (minRating > 0) {
+      const card = document.querySelector(`.product-card[data-id="${p.id}"]`);
+      if (card) {
+        const ratingEl = card.querySelector('.rating-value');
+        if (ratingEl && parseFloat(ratingEl.textContent) < minRating) return false;
+      }
+    }
+    return true;
+  });
+}
+
+function setupFilters() {
+  const filterBar = document.querySelector('.filter-bar');
+  if (!filterBar) return;
+  const priceSlider = document.getElementById('filter-price');
+  const priceValue = document.getElementById('filter-price-value');
+  const ratingSelect = document.getElementById('filter-rating');
+  const saleCheckbox = document.getElementById('filter-sale');
+  const resetBtn = document.getElementById('filter-reset');
+  priceSlider.addEventListener('input', () => {
+    priceValue.textContent = priceSlider.value + ' ₽';
+    renderFilteredProducts();
+  });
+  ratingSelect.addEventListener('change', renderFilteredProducts);
+  saleCheckbox.addEventListener('change', renderFilteredProducts);
+  resetBtn.addEventListener('click', () => {
+    priceSlider.value = priceSlider.max;
+    priceValue.textContent = priceSlider.max + ' ₽';
+    ratingSelect.value = '0';
+    saleCheckbox.checked = false;
+    renderFilteredProducts();
+  });
+}
+
+function renderFilteredProducts() {
+  const filtered = applyFilters();
+  const container = document.getElementById('products-container');
+  if (!container) return;
+  container.innerHTML = '';
+  filtered.forEach(p => {
+    const cardHtml = createProductCardHtml(p);
+    const temp = document.createElement('div');
+    temp.innerHTML = cardHtml;
+    const newCard = temp.firstElementChild;
+    container.appendChild(newCard);
+    const productId = newCard.dataset.id;
+    const product = currentProducts.find(p => p.id === productId);
+    if (product) {
+      const controls = newCard.querySelector('.cart-controls');
+      if (controls) controls.innerHTML = createCartControls(newCard, product);
+      setupCardGallery(newCard);
+    }
+    addCardListeners(newCard);
+  });
+  updateAllCartControls();
+  if (document.getElementById('cart-modal').style.display === 'flex') renderCart();
 }
 
 function renderProductsFromData(products, reviewsData) {
@@ -532,38 +602,62 @@ function renderCart() {
   const totalEl = document.getElementById('cart-total-price');
   if (!container || !totalEl) return;
   if (cart.length === 0) { container.innerHTML = '<p>Корзина пуста</p>'; totalEl.textContent = '0'; return; }
-  container.innerHTML = cart.map(item => {
-    const product = currentProducts.find(p => p.id === item.id);
-    let max = product ? (product.stock ?? 0) : 0;
-    if (item.variant && product && Array.isArray(product.variants)) {
-      const variant = product.variants.find(v => v.name === item.variant.name);
-      if (variant && Array.isArray(variant.options)) {
-        const option = variant.options.find(o => o.value === item.variant.value);
-        if (option) max = option.stock;
+  if (!container._renderedItems || container._renderedItems.length !== cart.length) {
+    container.innerHTML = cart.map(item => {
+      const product = currentProducts.find(p => p.id === item.id);
+      let max = product ? (product.stock ?? 0) : 0;
+      if (item.variant && product && Array.isArray(product.variants)) {
+        const variant = product.variants.find(v => v.name === item.variant.name);
+        if (variant && Array.isArray(variant.options)) {
+          const option = variant.options.find(o => o.value === item.variant.value);
+          if (option) max = option.stock;
+        }
       }
-    }
-    return `
-      <div class="cart-item">
-        <div class="cart-item-info">
-          <img src="${item.image}" alt="${item.title}" class="cart-item-image">
-          <div class="cart-item-details">
-            <div class="cart-item-title">${item.title}</div>
-            ${item.variant ? `<div class="cart-item-variant">${item.variant.name}: ${item.variant.value}</div>` : ''}
-            <div class="cart-item-price">${item.price.toLocaleString()} ₽</div>
+      return `
+        <div class="cart-item" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">
+          <div class="cart-item-info">
+            <img src="${item.image}" alt="${item.title}" class="cart-item-image">
+            <div class="cart-item-details">
+              <div class="cart-item-title">${item.title}</div>
+              ${item.variant ? `<div class="cart-item-variant">${item.variant.name}: ${item.variant.value}</div>` : ''}
+              <div class="cart-item-price">${item.price.toLocaleString()} ₽</div>
+            </div>
+          </div>
+          <div class="cart-item-actions">
+            <div class="cart-item-qty">
+              <button class="cart-qty-btn" data-action="cart-decrease" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">−</button>
+              <span class="cart-item-count">${item.qty}</span>
+              <button class="cart-qty-btn" data-action="cart-increase" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}" ${item.qty >= max ? 'disabled' : ''}>+</button>
+            </div>
+            <button class="cart-remove-btn" data-action="cart-remove" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">🗑</button>
           </div>
         </div>
-        <div class="cart-item-actions">
-          <div class="cart-item-qty">
-            <button class="cart-qty-btn" data-action="cart-decrease" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">−</button>
-            <span>${item.qty}</span>
-            <button class="cart-qty-btn" data-action="cart-increase" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}" ${item.qty >= max ? 'disabled' : ''}>+</button>
-          </div>
-          <button class="cart-remove-btn" data-action="cart-remove" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">🗑</button>
-        </div>
-      </div>
-    `;
-  }).join('');
-  container.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', handleCartItemAction));
+      `;
+    }).join('');
+    container.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', handleCartItemAction));
+  } else {
+    cart.forEach(item => {
+      const cartItemEl = container.querySelector(`.cart-item[data-id="${item.id}"][data-variant-value="${item.variant?.value || ''}"]`);
+      if (cartItemEl) {
+        const countSpan = cartItemEl.querySelector('.cart-item-count');
+        if (countSpan) countSpan.textContent = item.qty;
+        const plusBtn = cartItemEl.querySelector('[data-action="cart-increase"]');
+        if (plusBtn) {
+          const product = currentProducts.find(p => p.id === item.id);
+          let max = product ? (product.stock ?? 0) : 0;
+          if (item.variant && product && Array.isArray(product.variants)) {
+            const variant = product.variants.find(v => v.name === item.variant.name);
+            if (variant && Array.isArray(variant.options)) {
+              const option = variant.options.find(o => o.value === item.variant.value);
+              if (option) max = option.stock;
+            }
+          }
+          plusBtn.disabled = item.qty >= max;
+        }
+      }
+    });
+  }
+  container._renderedItems = cart.map(item => ({id: item.id, variantValue: item.variant?.value || ''}));
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   totalEl.textContent = total.toLocaleString();
 }

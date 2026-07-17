@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
       adminScreen.style.display = 'block';
       loadProducts();
       loadOrders();
+      loadReviewsAdmin();
     } else {
       loginScreen.style.display = 'block';
       adminScreen.style.display = 'none';
@@ -41,6 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
       document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
       if (btn.dataset.tab === 'orders') loadOrders();
+      if (btn.dataset.tab === 'reviews') loadReviewsAdmin();
     });
   });
 
@@ -126,6 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('badge-settings').style.display = 'none';
     document.getElementById('old-price-settings').style.display = 'none';
     document.getElementById('product-has-old-price').checked = false;
+    document.getElementById('product-sale').checked = false;
     productModal.style.display = 'flex';
   });
 
@@ -134,6 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const id = document.getElementById('product-id').value;
     const hasBadge = document.getElementById('product-has-badge').checked;
     const hasOldPrice = document.getElementById('product-has-old-price').checked;
+    const isSale = document.getElementById('product-sale').checked;
     const mainImage = document.getElementById('product-image').value.trim();
     if (!mainImage) { alert('Укажите главное изображение'); return; }
 
@@ -161,7 +165,8 @@ document.addEventListener('DOMContentLoaded', () => {
       images: images,
       variants: variants,
       badge: null,
-      oldPrice: null
+      oldPrice: null,
+      sale: isSale
     };
 
     if (hasBadge) productData.badge = {
@@ -227,6 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ? p.variants[0].options.map(opt => `${opt.value}: ${opt.stock} шт.`).join(', ')
           : '';
         const badgeHtml = p.badge ? `<span class="badge-preview" style="background:${p.badge.bgColor};color:${p.badge.color}">${p.badge.text}</span>` : '';
+        const saleLabel = p.sale ? '<span style="color:#e53e3e; font-size:0.7rem;">Распродажа</span>' : '';
 
         return `
           <div class="admin-product-card" data-id="${p.id}">
@@ -240,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span>Цена: ${p.price.toLocaleString()} ₽ ${oldPriceText}</span>
                 <span>Всего: ${p.totalStock}</span>
                 ${variantsText ? `<div class="variants-list">${variantsText}</div>` : ''}
+                ${saleLabel}
               </div>
               ${badgeHtml}
               <div class="admin-actions">
@@ -346,6 +353,8 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('old-price-value').value = '';
     }
 
+    document.getElementById('product-sale').checked = !!product.sale;
+
     productModal.style.display = 'flex';
   }
 
@@ -408,5 +417,34 @@ document.addEventListener('DOMContentLoaded', () => {
         return '<div class="order-card"><h3>Заказ №' + (order.orderNumber || order.id) + '</h3><p><strong>Дата:</strong> ' + date + '</p><p><strong>Статус:</strong> <span class="order-status">' + order.status + '</span></p><p><strong>Сумма:</strong> ' + order.amount + ' ' + order.currency + '</p><p><strong>Чек:</strong> ' + order.paymentId + '</p><p><strong>Покупатель:</strong> ' + order.customerName + '</p><p><strong>Телефон:</strong> ' + order.customerPhone + '</p><p><strong>Email:</strong> ' + (order.customerEmail || '—') + '</p><p><strong>Адрес:</strong> ' + order.deliveryAddress + '</p><ul>' + itemsHtml + '</ul></div>';
       }).join('') + '</div>';
     } catch (err) { container.innerHTML = '<p>Ошибка загрузки заказов: ' + err.message + '</p>'; }
+  }
+
+  async function loadReviewsAdmin() {
+    const container = document.getElementById('reviews-list-admin');
+    container.innerHTML = '<p>Загрузка отзывов…</p>';
+    try {
+      const snapshot = await db.collection('reviews').orderBy('createdAt', 'desc').limit(100).get();
+      const reviews = [];
+      snapshot.forEach(doc => reviews.push({ id: doc.id, ...doc.data() }));
+      if (reviews.length === 0) { container.innerHTML = '<p>Отзывов пока нет.</p>'; return; }
+      container.innerHTML = '<div class="reviews-grid">' + reviews.map(r => {
+        const date = r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleString('ru-RU') : '—';
+        return `<div class="review-card-admin">
+          <p><strong>${r.author}</strong></p>
+          <div class="review-rating">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</div>
+          <div class="review-date">${date}</div>
+          <p class="review-text">${r.text}</p>
+          <button class="btn-sm danger delete-review" data-id="${r.id}">🗑 Удалить</button>
+        </div>`;
+      }).join('') + '</div>';
+      container.querySelectorAll('.delete-review').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (confirm('Удалить отзыв?')) {
+            await db.collection('reviews').doc(btn.dataset.id).delete();
+            loadReviewsAdmin();
+          }
+        });
+      });
+    } catch (err) { container.innerHTML = '<p>Ошибка загрузки отзывов: ' + err.message + '</p>'; }
   }
 });

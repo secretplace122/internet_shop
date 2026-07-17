@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadReviews();
   document.getElementById('submit-review').addEventListener('click', submitReview);
   subscribeToProduct();
+  loadAlsoInteresting();
 });
 
 let product = null;
@@ -346,28 +347,61 @@ function renderCart() {
   const totalEl = document.getElementById('cart-total-price');
   if (!container || !totalEl) return;
   if (cart.length === 0) { container.innerHTML = '<p>Корзина пуста</p>'; totalEl.textContent = '0'; return; }
-  container.innerHTML = cart.map(item => `
-    <div class="cart-item">
-      <div class="cart-item-info">
-        <img src="${item.image}" alt="${item.title}" class="cart-item-image">
-        <div class="cart-item-details">
-          <div class="cart-item-title">${item.title}</div>
-          ${item.variant ? `<div class="cart-item-variant">${item.variant.name}: ${item.variant.value}</div>` : ''}
-          <div class="cart-item-price">${item.price.toLocaleString()} ₽</div>
+  if (!container._renderedItems || container._renderedItems.length !== cart.length) {
+    container.innerHTML = cart.map(item => {
+      let max = product ? (product.stock ?? 0) : 0;
+      if (item.variant && product && Array.isArray(product.variants)) {
+        const variant = product.variants.find(v => v.name === item.variant.name);
+        if (variant && Array.isArray(variant.options)) {
+          const option = variant.options.find(o => o.value === item.variant.value);
+          if (option) max = option.stock;
+        }
+      }
+      return `
+        <div class="cart-item" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">
+          <div class="cart-item-info">
+            <img src="${item.image}" alt="${item.title}" class="cart-item-image">
+            <div class="cart-item-details">
+              <div class="cart-item-title">${item.title}</div>
+              ${item.variant ? `<div class="cart-item-variant">${item.variant.name}: ${item.variant.value}</div>` : ''}
+              <div class="cart-item-price">${item.price.toLocaleString()} ₽</div>
+            </div>
+          </div>
+          <div class="cart-item-actions">
+            <div class="cart-item-qty">
+              <button class="cart-qty-btn" data-action="cart-decrease" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">−</button>
+              <span class="cart-item-count">${item.qty}</span>
+              <button class="cart-qty-btn" data-action="cart-increase" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}" ${item.qty >= max ? 'disabled' : ''}>+</button>
+            </div>
+            <button class="cart-remove-btn" data-action="cart-remove" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">🗑</button>
+          </div>
         </div>
-      </div>
-      <div class="cart-item-actions">
-        <div class="cart-item-qty">
-          <button class="cart-qty-btn" data-action="cart-decrease" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">−</button>
-          <span>${item.qty}</span>
-          <button class="cart-qty-btn" data-action="cart-increase" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">+</button>
-        </div>
-        <button class="cart-remove-btn" data-action="cart-remove" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">🗑</button>
-      </div>
-    </div>
-  `).join('');
-  const actionButtons = container.querySelectorAll('[data-action]');
-  actionButtons.forEach(btn => { btn.removeEventListener('click', handleCartAction); btn.addEventListener('click', handleCartAction); });
+      `;
+    }).join('');
+    const actionButtons = container.querySelectorAll('[data-action]');
+    actionButtons.forEach(btn => { btn.removeEventListener('click', handleCartAction); btn.addEventListener('click', handleCartAction); });
+  } else {
+    cart.forEach(item => {
+      const cartItemEl = container.querySelector(`.cart-item[data-id="${item.id}"][data-variant-value="${item.variant?.value || ''}"]`);
+      if (cartItemEl) {
+        const countSpan = cartItemEl.querySelector('.cart-item-count');
+        if (countSpan) countSpan.textContent = item.qty;
+        const plusBtn = cartItemEl.querySelector('[data-action="cart-increase"]');
+        if (plusBtn) {
+          let max = product ? (product.stock ?? 0) : 0;
+          if (item.variant && product && Array.isArray(product.variants)) {
+            const variant = product.variants.find(v => v.name === item.variant.name);
+            if (variant && Array.isArray(variant.options)) {
+              const option = variant.options.find(o => o.value === item.variant.value);
+              if (option) max = option.stock;
+            }
+          }
+          plusBtn.disabled = item.qty >= max;
+        }
+      }
+    });
+  }
+  container._renderedItems = cart.map(item => ({id: item.id, variantValue: item.variant?.value || ''}));
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   totalEl.textContent = total.toLocaleString();
 }
@@ -405,15 +439,19 @@ async function loadReviews() {
   try {
     const snapshot = await db.collection('reviews').where('productId', '==', productId).where('approved', '==', true).orderBy('createdAt', 'desc').get();
     const reviews = [];
-    snapshot.forEach(doc => reviews.push(doc.data()));
+    snapshot.forEach(doc => reviews.push({ id: doc.id, ...doc.data() }));
     if (!reviews.length) container.innerHTML = '<p>Пока нет отзывов.</p>';
-    else container.innerHTML = reviews.map(r => `
-      <div class="review-card">
-        <div class="review-author">${r.author}</div>
-        <div class="review-rating">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</div>
-        <div class="review-text">${r.text}</div>
-      </div>
-    `).join('');
+    else container.innerHTML = reviews.map(r => {
+      const date = r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleString('ru-RU') : '—';
+      return `
+        <div class="review-card">
+          <div class="review-author">${r.author}</div>
+          <div class="review-rating">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</div>
+          <div class="review-date" style="font-size:0.7rem; color: #5a6577;">${date}</div>
+          <div class="review-text">${r.text}</div>
+        </div>
+      `;
+    }).join('');
   } catch (err) { container.innerHTML = '<p>Ошибка загрузки отзывов</p>'; }
 }
 
@@ -428,4 +466,25 @@ function submitReview() {
     document.getElementById('review-author').value = ''; document.getElementById('review-text').value = '';
     selectedRating = 0; updateStars(); loadReviews();
   }).catch(err => { document.getElementById('review-message').textContent = 'Ошибка: ' + err.message; });
+}
+
+async function loadAlsoInteresting() {
+  const container = document.getElementById('also-interesting-grid');
+  if (!container) return;
+  try {
+    const snapshot = await db.collection('products').get();
+    const allProducts = [];
+    snapshot.forEach(doc => allProducts.push({ id: doc.id, ...doc.data() }));
+    const filtered = allProducts.filter(p => p.id !== productId);
+    const shuffled = filtered.sort(() => 0.5 - Math.random()).slice(0, 4);
+    container.innerHTML = shuffled.map(p => `
+      <div class="also-interesting-card" onclick="window.location.href='products/${p.id}/'">
+        <img src="${p.image}" alt="${p.title}">
+        <div class="also-info">
+          <div class="also-title">${p.title}</div>
+          <div class="also-price">${p.price.toLocaleString()} ₽</div>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {}
 }

@@ -41,6 +41,7 @@
     <div class="admin-tabs">
       <button class="tab-btn active" data-tab="products">Товары</button>
       <button class="tab-btn" data-tab="orders">Заказы</button>
+      <button class="tab-btn" data-tab="reviews">Отзывы</button>
     </div>
 
     <div id="tab-products" class="tab-content active">
@@ -52,6 +53,10 @@
 
     <div id="tab-orders" class="tab-content">
       <div id="orders-list"><p>Заказы появятся после первых оплат.</p></div>
+    </div>
+
+    <div id="tab-reviews" class="tab-content">
+      <div id="reviews-list-admin"><p>Загрузка отзывов…</p></div>
     </div>
 
     <div id="product-modal" class="modal">
@@ -103,6 +108,10 @@
             <label>Старая цена (₽)</label>
             <input type="number" id="old-price-value" value="0">
           </div>
+
+          <label class="checkbox-label">
+            <input type="checkbox" id="product-sale"> Распродажа (для фильтра)
+          </label>
 
           <button type="submit" class="btn" style="margin-top:15px;">Сохранить</button>
         </form>

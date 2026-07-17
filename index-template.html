@@ -25,6 +25,26 @@
   <section class="catalog" id="catalog">
     <div class="container">
       <h2>Товары</h2>
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label for="filter-price">Цена до:</label>
+          <input type="range" id="filter-price" min="0" max="100000" value="100000" step="100">
+          <span class="price-range-value" id="filter-price-value">100000 ₽</span>
+        </div>
+        <div class="filter-group">
+          <label for="filter-rating">Рейтинг от:</label>
+          <select id="filter-rating">
+            <option value="0">Любой</option>
+            <option value="4">4+</option>
+            <option value="3">3+</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <input type="checkbox" id="filter-sale">
+          <label for="filter-sale">Распродажа</label>
+        </div>
+        <button class="btn-reset" id="filter-reset">Сбросить</button>
+      </div>
       <div class="products-grid" id="products-container"></div>
     </div>
   </section>
