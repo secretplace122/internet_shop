@@ -33,10 +33,6 @@ function initNavigation() {
   const toggle = document.getElementById('nav-toggle');
   const navCart = document.getElementById('nav-cart');
   let isOpen = false;
-  let hoverTimer = null;
-  let closeTimer = null;
-  let manualOpen = false;
-  let scrollTimeout = null;
 
   navCart.addEventListener('click', (e) => {
     e.preventDefault();
@@ -47,63 +43,27 @@ function initNavigation() {
   toggle.addEventListener('click', (e) => {
     e.stopPropagation();
     if (isOpen) {
-      closeMenu();
-      manualOpen = false;
+      pill.classList.remove('open');
+      isOpen = false;
     } else {
-      openMenu();
-      manualOpen = true;
-      clearTimeout(closeTimer);
-      closeTimer = setTimeout(() => {
-        if (manualOpen && !pill.matches(':hover')) {
-          closeMenu();
-          manualOpen = false;
-        }
-      }, 3000);
-    }
-  });
-
-  pill.addEventListener('mouseenter', () => {
-    clearTimeout(hoverTimer);
-    clearTimeout(closeTimer);
-    if (!isOpen) {
-      hoverTimer = setTimeout(() => {
-        openMenu();
-        manualOpen = false;
-      }, 150);
-    }
-  });
-
-  pill.addEventListener('mouseleave', () => {
-    clearTimeout(hoverTimer);
-    if (!manualOpen) {
-      closeTimer = setTimeout(() => {
-        if (!pill.matches(':hover')) closeMenu();
-      }, 200);
+      pill.classList.add('open');
+      isOpen = true;
     }
   });
 
   window.addEventListener('scroll', () => {
     if (isOpen) {
-      closeMenu();
-      manualOpen = false;
+      pill.classList.remove('open');
+      isOpen = false;
     }
-    clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(() => {
-      if (pill.matches(':hover') && !isOpen) {
-        openMenu();
-        manualOpen = false;
-      }
-    }, 1000);
   }, { passive: true });
 
-  function openMenu() {
-    pill.classList.add('open');
-    isOpen = true;
-  }
-  function closeMenu() {
-    pill.classList.remove('open');
-    isOpen = false;
-  }
+  document.addEventListener('click', (e) => {
+    if (!pill.contains(e.target) && isOpen) {
+      pill.classList.remove('open');
+      isOpen = false;
+    }
+  });
 }
 
 document.querySelectorAll('#star-rating span').forEach(star => {

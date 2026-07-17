@@ -26,10 +26,6 @@ function initNavigation() {
   const toggle = document.getElementById('nav-toggle');
   const navCart = document.getElementById('nav-cart');
   let isOpen = false;
-  let hoverTimer = null;
-  let closeTimer = null;
-  let manualOpen = false;
-  let scrollTimeout = null;
 
   navCart.addEventListener('click', (e) => {
     e.preventDefault();
@@ -40,63 +36,27 @@ function initNavigation() {
   toggle.addEventListener('click', (e) => {
     e.stopPropagation();
     if (isOpen) {
-      closeMenu();
-      manualOpen = false;
+      pill.classList.remove('open');
+      isOpen = false;
     } else {
-      openMenu();
-      manualOpen = true;
-      clearTimeout(closeTimer);
-      closeTimer = setTimeout(() => {
-        if (manualOpen && !pill.matches(':hover')) {
-          closeMenu();
-          manualOpen = false;
-        }
-      }, 3000);
-    }
-  });
-
-  pill.addEventListener('mouseenter', () => {
-    clearTimeout(hoverTimer);
-    clearTimeout(closeTimer);
-    if (!isOpen) {
-      hoverTimer = setTimeout(() => {
-        openMenu();
-        manualOpen = false;
-      }, 150);
-    }
-  });
-
-  pill.addEventListener('mouseleave', () => {
-    clearTimeout(hoverTimer);
-    if (!manualOpen) {
-      closeTimer = setTimeout(() => {
-        if (!pill.matches(':hover')) closeMenu();
-      }, 200);
+      pill.classList.add('open');
+      isOpen = true;
     }
   });
 
   window.addEventListener('scroll', () => {
     if (isOpen) {
-      closeMenu();
-      manualOpen = false;
+      pill.classList.remove('open');
+      isOpen = false;
     }
-    clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(() => {
-      if (pill.matches(':hover') && !isOpen) {
-        openMenu();
-        manualOpen = false;
-      }
-    }, 1000);
   }, { passive: true });
 
-  function openMenu() {
-    pill.classList.add('open');
-    isOpen = true;
-  }
-  function closeMenu() {
-    pill.classList.remove('open');
-    isOpen = false;
-  }
+  document.addEventListener('click', (e) => {
+    if (!pill.contains(e.target) && isOpen) {
+      pill.classList.remove('open');
+      isOpen = false;
+    }
+  });
 }
 
 async function checkDataVersion() {
@@ -207,17 +167,14 @@ function applyFilters() {
 
 function setupFilters() {
   const filterToggle = document.getElementById('filter-toggle');
-  const filterModal = document.getElementById('filter-modal');
-  const filterClose = document.getElementById('filter-close');
+  const filterPanel = document.getElementById('filter-panel');
   filterToggle.addEventListener('click', () => {
-    filterModal.style.display = 'flex';
+    filterPanel.classList.toggle('open');
   });
-  filterClose.addEventListener('click', () => {
-    filterModal.style.display = 'none';
-    renderFilteredProducts();
-  });
-  window.addEventListener('click', (e) => {
-    if (e.target === filterModal) filterModal.style.display = 'none';
+  document.addEventListener('click', (e) => {
+    if (!filterPanel.contains(e.target) && e.target !== filterToggle) {
+      filterPanel.classList.remove('open');
+    }
   });
   document.getElementById('filter-reset').addEventListener('click', () => {
     document.getElementById('filter-price-from').value = '';
@@ -230,9 +187,14 @@ function setupFilters() {
       document.getElementById('filter-price-from').value = Math.min(...prices);
       document.getElementById('filter-price-to').value = Math.max(...prices);
     }
-    filterModal.style.display = 'none';
+    filterPanel.classList.remove('open');
     renderFilteredProducts();
   });
+  document.getElementById('filter-price-from').addEventListener('input', renderFilteredProducts);
+  document.getElementById('filter-price-to').addEventListener('input', renderFilteredProducts);
+  document.getElementById('filter-rating-4').addEventListener('change', renderFilteredProducts);
+  document.getElementById('filter-rating-5').addEventListener('change', renderFilteredProducts);
+  document.getElementById('filter-sale').addEventListener('change', renderFilteredProducts);
 }
 
 function renderFilteredProducts() {
