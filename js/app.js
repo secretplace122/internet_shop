@@ -4,13 +4,13 @@ const CACHE_TTL = 5 * 60 * 1000;
 const VERSION_KEY = 'dataVersion';
 
 document.addEventListener('DOMContentLoaded', async () => {
+  initNavigation();
   await checkDataVersion();
   const urlParams = new URLSearchParams(window.location.search);
   const forceRefresh = urlParams.has('refresh');
   await loadProductsFromFirestore(forceRefresh);
   setupCart();
   setupFilters();
-  setupNavCart();
   subscribeToProducts();
   if (urlParams.get('checkout') === 'open') {
     setTimeout(() => showCheckoutForm(), 500);
@@ -21,12 +21,82 @@ let cart = JSON.parse(localStorage.getItem('cart')) || [];
 let currentProducts = [];
 let unsubscribeProducts = null;
 
-function setupNavCart() {
-  document.getElementById('nav-cart').addEventListener('click', (e) => {
+function initNavigation() {
+  const pill = document.getElementById('nav-pill');
+  const toggle = document.getElementById('nav-toggle');
+  const navCart = document.getElementById('nav-cart');
+  let isOpen = false;
+  let hoverTimer = null;
+  let closeTimer = null;
+  let manualOpen = false;
+  let scrollTimeout = null;
+
+  navCart.addEventListener('click', (e) => {
     e.preventDefault();
     document.getElementById('cart-modal').style.display = 'flex';
     renderCart();
   });
+
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (isOpen) {
+      closeMenu();
+      manualOpen = false;
+    } else {
+      openMenu();
+      manualOpen = true;
+      clearTimeout(closeTimer);
+      closeTimer = setTimeout(() => {
+        if (manualOpen && !pill.matches(':hover')) {
+          closeMenu();
+          manualOpen = false;
+        }
+      }, 3000);
+    }
+  });
+
+  pill.addEventListener('mouseenter', () => {
+    clearTimeout(hoverTimer);
+    clearTimeout(closeTimer);
+    if (!isOpen) {
+      hoverTimer = setTimeout(() => {
+        openMenu();
+        manualOpen = false;
+      }, 150);
+    }
+  });
+
+  pill.addEventListener('mouseleave', () => {
+    clearTimeout(hoverTimer);
+    if (!manualOpen) {
+      closeTimer = setTimeout(() => {
+        if (!pill.matches(':hover')) closeMenu();
+      }, 200);
+    }
+  });
+
+  window.addEventListener('scroll', () => {
+    if (isOpen) {
+      closeMenu();
+      manualOpen = false;
+    }
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+      if (pill.matches(':hover') && !isOpen) {
+        openMenu();
+        manualOpen = false;
+      }
+    }, 1000);
+  }, { passive: true });
+
+  function openMenu() {
+    pill.classList.add('open');
+    isOpen = true;
+  }
+  function closeMenu() {
+    pill.classList.remove('open');
+    isOpen = false;
+  }
 }
 
 async function checkDataVersion() {
@@ -137,15 +207,18 @@ function applyFilters() {
 
 function setupFilters() {
   const filterToggle = document.getElementById('filter-toggle');
-  const filterBar = document.getElementById('filter-bar');
+  const filterModal = document.getElementById('filter-modal');
+  const filterClose = document.getElementById('filter-close');
   filterToggle.addEventListener('click', () => {
-    filterBar.classList.toggle('open');
+    filterModal.style.display = 'flex';
   });
-  document.getElementById('filter-price-from').addEventListener('input', renderFilteredProducts);
-  document.getElementById('filter-price-to').addEventListener('input', renderFilteredProducts);
-  document.getElementById('filter-rating-4').addEventListener('change', renderFilteredProducts);
-  document.getElementById('filter-rating-5').addEventListener('change', renderFilteredProducts);
-  document.getElementById('filter-sale').addEventListener('change', renderFilteredProducts);
+  filterClose.addEventListener('click', () => {
+    filterModal.style.display = 'none';
+    renderFilteredProducts();
+  });
+  window.addEventListener('click', (e) => {
+    if (e.target === filterModal) filterModal.style.display = 'none';
+  });
   document.getElementById('filter-reset').addEventListener('click', () => {
     document.getElementById('filter-price-from').value = '';
     document.getElementById('filter-price-to').value = '';
@@ -157,6 +230,7 @@ function setupFilters() {
       document.getElementById('filter-price-from').value = Math.min(...prices);
       document.getElementById('filter-price-to').value = Math.max(...prices);
     }
+    filterModal.style.display = 'none';
     renderFilteredProducts();
   });
 }

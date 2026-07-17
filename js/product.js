@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.body.innerHTML = 'Товар не указан';
     return;
   }
-  setupNavCart();
+  initNavigation();
   await checkDataVersion();
   await loadProduct();
   setupGallery();
@@ -28,12 +28,82 @@ let unsubscribeProduct = null;
 let galleryImages = [];
 let currentGalleryIndex = 0;
 
-function setupNavCart() {
-  document.getElementById('nav-cart').addEventListener('click', (e) => {
+function initNavigation() {
+  const pill = document.getElementById('nav-pill');
+  const toggle = document.getElementById('nav-toggle');
+  const navCart = document.getElementById('nav-cart');
+  let isOpen = false;
+  let hoverTimer = null;
+  let closeTimer = null;
+  let manualOpen = false;
+  let scrollTimeout = null;
+
+  navCart.addEventListener('click', (e) => {
     e.preventDefault();
     document.getElementById('cart-modal').style.display = 'flex';
     renderCart();
   });
+
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (isOpen) {
+      closeMenu();
+      manualOpen = false;
+    } else {
+      openMenu();
+      manualOpen = true;
+      clearTimeout(closeTimer);
+      closeTimer = setTimeout(() => {
+        if (manualOpen && !pill.matches(':hover')) {
+          closeMenu();
+          manualOpen = false;
+        }
+      }, 3000);
+    }
+  });
+
+  pill.addEventListener('mouseenter', () => {
+    clearTimeout(hoverTimer);
+    clearTimeout(closeTimer);
+    if (!isOpen) {
+      hoverTimer = setTimeout(() => {
+        openMenu();
+        manualOpen = false;
+      }, 150);
+    }
+  });
+
+  pill.addEventListener('mouseleave', () => {
+    clearTimeout(hoverTimer);
+    if (!manualOpen) {
+      closeTimer = setTimeout(() => {
+        if (!pill.matches(':hover')) closeMenu();
+      }, 200);
+    }
+  });
+
+  window.addEventListener('scroll', () => {
+    if (isOpen) {
+      closeMenu();
+      manualOpen = false;
+    }
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+      if (pill.matches(':hover') && !isOpen) {
+        openMenu();
+        manualOpen = false;
+      }
+    }, 1000);
+  }, { passive: true });
+
+  function openMenu() {
+    pill.classList.add('open');
+    isOpen = true;
+  }
+  function closeMenu() {
+    pill.classList.remove('open');
+    isOpen = false;
+  }
 }
 
 document.querySelectorAll('#star-rating span').forEach(star => {
@@ -491,39 +561,39 @@ async function loadAlsoInteresting() {
     snapshot.forEach(doc => allProducts.push({ id: doc.id, ...doc.data() }));
     const filtered = allProducts.filter(p => p.id !== productId);
     const shuffled = filtered.sort(() => 0.5 - Math.random()).slice(0, 8);
+    const productIds = shuffled.map(p => p.id);
+    const reviewsData = await fetchReviewsData(productIds);
     container.innerHTML = shuffled.map(p => {
+      const rev = reviewsData[p.id] || { avg: '0.0', count: 0 };
       const badgeHtml = p.badge ? `<span class="badge" style="background:${p.badge.bgColor};color:${p.badge.color}">${p.badge.text}</span>` : '';
+      let priceBlock = `<span class="also-price">${p.price.toLocaleString()} ₽</span>`;
+      if (p.oldPrice && p.oldPrice > p.price) {
+        const discount = Math.round((1 - p.price / p.oldPrice) * 100);
+        priceBlock = `<span class="also-price">${p.price.toLocaleString()} ₽</span> <span class="old-price" style="font-size:0.7rem;">${p.oldPrice.toLocaleString()} ₽</span> <span class="discount-badge">-${discount}%</span>`;
+      }
       return `
-        <div class="also-card" data-id="${p.id}">
+        <div class="also-card" data-id="${p.id}" onclick="window.location.href='products/${p.id}/'">
           <div class="card-gallery">
-            <img src="${p.image}" alt="${p.title}">
+            <div class="card-gallery-slide">
+              <div class="blur-bg" style="background-image: url('${p.image}')"></div>
+              <img src="${p.image}" alt="${p.title}">
+            </div>
             ${badgeHtml}
           </div>
           <div class="also-info">
             <div class="also-title">${p.title}</div>
-            <div class="also-price">${p.price.toLocaleString()} ₽</div>
-            <button class="add-to-cart also-add-btn" data-id="${p.id}" data-action="also-add">В корзину</button>
+            <div class="rating-row" style="font-size:0.65rem;">
+              <span class="rating-star">★</span>
+              <span class="rating-value">${rev.avg}</span>
+              <span class="review-icon">
+                <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                ${rev.count}
+              </span>
+            </div>
+            ${priceBlock}
           </div>
         </div>
       `;
     }).join('');
-    container.querySelectorAll('.also-card').forEach(card => {
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('button')) return;
-        window.location.href = `products/${card.dataset.id}/`;
-      });
-    });
-    container.querySelectorAll('.also-add-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const prodId = btn.dataset.id;
-        const alsoProduct = allProducts.find(p => p.id === prodId);
-        if (!alsoProduct) return;
-        addToCart(alsoProduct, 1, null);
-        updateCartUI();
-        btn.textContent = '✓ В корзине';
-        setTimeout(() => { btn.textContent = 'В корзину'; }, 1500);
-      });
-    });
   } catch (err) {}
 }

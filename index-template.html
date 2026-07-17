@@ -17,16 +17,16 @@
 <body>
   <nav id="main-nav" class="main-nav">
     <div class="nav-pill" id="nav-pill">
-      <button class="nav-toggle" id="nav-toggle" aria-label="Меню">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
-        <span class="nav-brand">Магазин</span>
-      </button>
       <div class="nav-links" id="nav-links">
         <a href="index.html" class="nav-link">Главная</a>
         <a href="index.html#catalog" class="nav-link">Каталог</a>
         <a href="#" class="nav-link" id="nav-cart">Корзина</a>
         <a href="index.html#info" class="nav-link">Контакты</a>
       </div>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Меню">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+        <span class="nav-brand">Меню</span>
+      </button>
     </div>
   </nav>
 
@@ -39,34 +39,11 @@
 
   <section class="catalog" id="catalog">
     <div class="container">
-      <h2>Товары</h2>
-      <button class="filter-toggle" id="filter-toggle">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7m0-4V3m8 18v-9m0-4V3m8 18v-5m0-4V3M1 14h6m2-6h6m2 8h6"/></svg>
-        Фильтры
-      </button>
-      <div class="filter-bar" id="filter-bar">
-        <div class="filter-group">
-          <label for="filter-price-from">Цена от</label>
-          <input type="number" id="filter-price-from" placeholder="0" min="0">
-        </div>
-        <div class="filter-group">
-          <label for="filter-price-to">до</label>
-          <input type="number" id="filter-price-to" placeholder="100000" min="0">
-        </div>
-        <div class="filter-group">
-          <label class="checkbox-label">
-            <input type="checkbox" id="filter-rating-4"> ★ 4 и выше
-          </label>
-          <label class="checkbox-label">
-            <input type="checkbox" id="filter-rating-5"> ★ 5
-          </label>
-        </div>
-        <div class="filter-group">
-          <label class="checkbox-label">
-            <input type="checkbox" id="filter-sale"> Распродажа
-          </label>
-        </div>
-        <button class="btn-reset" id="filter-reset">Сбросить</button>
+      <div class="catalog-header">
+        <h2>Товары</h2>
+        <button class="filter-toggle" id="filter-toggle" aria-label="Фильтры">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7m0-4V3m8 18v-9m0-4V3m8 18v-5m0-4V3M1 14h6m2-6h6m2 8h6"/></svg>
+        </button>
       </div>
       <div class="products-grid" id="products-container"></div>
     </div>
@@ -90,6 +67,41 @@
       <div id="cart-items"></div>
       <div class="cart-total"><strong>Итого: <span id="cart-total-price">0</span> ₽</strong></div>
       <button id="checkout-btn" class="btn">Оформить заказ</button>
+    </div>
+  </div>
+
+  <div class="modal" id="filter-modal">
+    <div class="modal-content">
+      <span class="close" id="filter-close">&times;</span>
+      <h2>Фильтры</h2>
+      <div class="filter-group">
+        <label for="filter-price-from">Цена от</label>
+        <input type="number" id="filter-price-from" placeholder="0" min="0">
+      </div>
+      <div class="filter-group">
+        <label for="filter-price-to">до</label>
+        <input type="number" id="filter-price-to" placeholder="100000" min="0">
+      </div>
+      <div class="filter-group">
+        <label class="custom-checkbox">
+          <input type="checkbox" id="filter-rating-4">
+          <span class="checkmark"></span>
+          ★ 4 и выше
+        </label>
+        <label class="custom-checkbox">
+          <input type="checkbox" id="filter-rating-5">
+          <span class="checkmark"></span>
+          ★ 5
+        </label>
+      </div>
+      <div class="filter-group">
+        <label class="custom-checkbox">
+          <input type="checkbox" id="filter-sale">
+          <span class="checkmark"></span>
+          Распродажа
+        </label>
+      </div>
+      <button class="btn-reset" id="filter-reset">Сбросить</button>
     </div>
   </div>
 
