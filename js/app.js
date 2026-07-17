@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadProductsFromFirestore(forceRefresh);
   setupCart();
   setupFilters();
+  setupNavCart();
   subscribeToProducts();
   if (urlParams.get('checkout') === 'open') {
     setTimeout(() => showCheckoutForm(), 500);
@@ -19,6 +20,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
 let currentProducts = [];
 let unsubscribeProducts = null;
+
+function setupNavCart() {
+  document.getElementById('nav-cart').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('cart-modal').style.display = 'flex';
+    renderCart();
+  });
+}
 
 async function checkDataVersion() {
   try {
@@ -43,6 +52,7 @@ async function loadProductsFromFirestore(forceRefresh = false) {
       currentProducts = cached;
       const reviewsData = await fetchReviewsData(cached.map(p => p.id));
       renderProductsFromData(cached, reviewsData);
+      setDefaultPriceRange(cached);
       return;
     }
   }
@@ -54,16 +64,27 @@ async function loadProductsFromFirestore(forceRefresh = false) {
     setCachedProducts(products);
     const reviewsData = await fetchReviewsData(products.map(p => p.id));
     renderProductsFromData(products, reviewsData);
+    setDefaultPriceRange(products);
   } catch (error) {
     console.warn('Ошибка загрузки:', error);
     const cached = getCachedProducts(true);
     if (cached) {
       currentProducts = cached;
       renderProductsFromData(cached, {});
+      setDefaultPriceRange(cached);
     } else {
       renderProductsFromData([], {});
     }
   }
+}
+
+function setDefaultPriceRange(products) {
+  if (!products.length) return;
+  const prices = products.map(p => p.price);
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  document.getElementById('filter-price-from').value = min;
+  document.getElementById('filter-price-to').value = max;
 }
 
 async function fetchReviewsData(productIds) {
@@ -91,21 +112,23 @@ async function fetchReviewsData(productIds) {
 }
 
 function applyFilters() {
-  const priceSlider = document.getElementById('filter-price');
-  const ratingSelect = document.getElementById('filter-rating');
-  const saleCheckbox = document.getElementById('filter-sale');
-  if (!priceSlider || !ratingSelect || !saleCheckbox) return currentProducts;
-  const maxPrice = parseInt(priceSlider.value);
-  const minRating = parseInt(ratingSelect.value);
-  const saleOnly = saleCheckbox.checked;
+  const from = parseInt(document.getElementById('filter-price-from').value) || 0;
+  const to = parseInt(document.getElementById('filter-price-to').value) || Infinity;
+  const rating4 = document.getElementById('filter-rating-4').checked;
+  const rating5 = document.getElementById('filter-rating-5').checked;
+  const saleOnly = document.getElementById('filter-sale').checked;
   return currentProducts.filter(p => {
-    if (maxPrice && p.price > maxPrice) return false;
+    if (p.price < from || p.price > to) return false;
     if (saleOnly && !p.sale) return false;
-    if (minRating > 0) {
+    if (rating4 || rating5) {
       const card = document.querySelector(`.product-card[data-id="${p.id}"]`);
       if (card) {
         const ratingEl = card.querySelector('.rating-value');
-        if (ratingEl && parseFloat(ratingEl.textContent) < minRating) return false;
+        if (ratingEl) {
+          const rating = parseFloat(ratingEl.textContent);
+          if (rating5 && rating < 5) return false;
+          if (rating4 && !rating5 && rating < 4) return false;
+        }
       }
     }
     return true;
@@ -113,24 +136,27 @@ function applyFilters() {
 }
 
 function setupFilters() {
-  const filterBar = document.querySelector('.filter-bar');
-  if (!filterBar) return;
-  const priceSlider = document.getElementById('filter-price');
-  const priceValue = document.getElementById('filter-price-value');
-  const ratingSelect = document.getElementById('filter-rating');
-  const saleCheckbox = document.getElementById('filter-sale');
-  const resetBtn = document.getElementById('filter-reset');
-  priceSlider.addEventListener('input', () => {
-    priceValue.textContent = priceSlider.value + ' ₽';
-    renderFilteredProducts();
+  const filterToggle = document.getElementById('filter-toggle');
+  const filterBar = document.getElementById('filter-bar');
+  filterToggle.addEventListener('click', () => {
+    filterBar.classList.toggle('open');
   });
-  ratingSelect.addEventListener('change', renderFilteredProducts);
-  saleCheckbox.addEventListener('change', renderFilteredProducts);
-  resetBtn.addEventListener('click', () => {
-    priceSlider.value = priceSlider.max;
-    priceValue.textContent = priceSlider.max + ' ₽';
-    ratingSelect.value = '0';
-    saleCheckbox.checked = false;
+  document.getElementById('filter-price-from').addEventListener('input', renderFilteredProducts);
+  document.getElementById('filter-price-to').addEventListener('input', renderFilteredProducts);
+  document.getElementById('filter-rating-4').addEventListener('change', renderFilteredProducts);
+  document.getElementById('filter-rating-5').addEventListener('change', renderFilteredProducts);
+  document.getElementById('filter-sale').addEventListener('change', renderFilteredProducts);
+  document.getElementById('filter-reset').addEventListener('click', () => {
+    document.getElementById('filter-price-from').value = '';
+    document.getElementById('filter-price-to').value = '';
+    document.getElementById('filter-rating-4').checked = false;
+    document.getElementById('filter-rating-5').checked = false;
+    document.getElementById('filter-sale').checked = false;
+    if (currentProducts.length) {
+      const prices = currentProducts.map(p => p.price);
+      document.getElementById('filter-price-from').value = Math.min(...prices);
+      document.getElementById('filter-price-to').value = Math.max(...prices);
+    }
     renderFilteredProducts();
   });
 }

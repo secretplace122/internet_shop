@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.body.innerHTML = 'Товар не указан';
     return;
   }
+  setupNavCart();
   await checkDataVersion();
   await loadProduct();
   setupGallery();
@@ -26,6 +27,14 @@ let currentMaxStock = 0;
 let unsubscribeProduct = null;
 let galleryImages = [];
 let currentGalleryIndex = 0;
+
+function setupNavCart() {
+  document.getElementById('nav-cart').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('cart-modal').style.display = 'flex';
+    renderCart();
+  });
+}
 
 document.querySelectorAll('#star-rating span').forEach(star => {
   star.addEventListener('click', function() {
@@ -442,13 +451,18 @@ async function loadReviews() {
     snapshot.forEach(doc => reviews.push({ id: doc.id, ...doc.data() }));
     if (!reviews.length) container.innerHTML = '<p>Пока нет отзывов.</p>';
     else container.innerHTML = reviews.map(r => {
-      const date = r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleString('ru-RU') : '—';
+      const date = r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
       return `
         <div class="review-card">
-          <div class="review-author">${r.author}</div>
-          <div class="review-rating">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</div>
-          <div class="review-date" style="font-size:0.7rem; color: #5a6577;">${date}</div>
-          <div class="review-text">${r.text}</div>
+          <div class="review-avatar">👤</div>
+          <div class="review-body">
+            <div class="review-header">
+              <span class="review-author">${r.author}</span>
+              <span class="review-date">${date}</span>
+            </div>
+            <div class="review-rating">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</div>
+            <div class="review-text">${r.text}</div>
+          </div>
         </div>
       `;
     }).join('');
@@ -469,22 +483,47 @@ function submitReview() {
 }
 
 async function loadAlsoInteresting() {
-  const container = document.getElementById('also-interesting-grid');
+  const container = document.getElementById('also-interesting-scroll');
   if (!container) return;
   try {
     const snapshot = await db.collection('products').get();
     const allProducts = [];
     snapshot.forEach(doc => allProducts.push({ id: doc.id, ...doc.data() }));
     const filtered = allProducts.filter(p => p.id !== productId);
-    const shuffled = filtered.sort(() => 0.5 - Math.random()).slice(0, 4);
-    container.innerHTML = shuffled.map(p => `
-      <div class="also-interesting-card" onclick="window.location.href='products/${p.id}/'">
-        <img src="${p.image}" alt="${p.title}">
-        <div class="also-info">
-          <div class="also-title">${p.title}</div>
-          <div class="also-price">${p.price.toLocaleString()} ₽</div>
+    const shuffled = filtered.sort(() => 0.5 - Math.random()).slice(0, 8);
+    container.innerHTML = shuffled.map(p => {
+      const badgeHtml = p.badge ? `<span class="badge" style="background:${p.badge.bgColor};color:${p.badge.color}">${p.badge.text}</span>` : '';
+      return `
+        <div class="also-card" data-id="${p.id}">
+          <div class="card-gallery">
+            <img src="${p.image}" alt="${p.title}">
+            ${badgeHtml}
+          </div>
+          <div class="also-info">
+            <div class="also-title">${p.title}</div>
+            <div class="also-price">${p.price.toLocaleString()} ₽</div>
+            <button class="add-to-cart also-add-btn" data-id="${p.id}" data-action="also-add">В корзину</button>
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
+    container.querySelectorAll('.also-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        window.location.href = `products/${card.dataset.id}/`;
+      });
+    });
+    container.querySelectorAll('.also-add-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const prodId = btn.dataset.id;
+        const alsoProduct = allProducts.find(p => p.id === prodId);
+        if (!alsoProduct) return;
+        addToCart(alsoProduct, 1, null);
+        updateCartUI();
+        btn.textContent = '✓ В корзине';
+        setTimeout(() => { btn.textContent = 'В корзину'; }, 1500);
+      });
+    });
   } catch (err) {}
 }
