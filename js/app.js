@@ -1,3 +1,4 @@
+// js/app.js
 const API_URL = 'https://functions.yandexcloud.net/d4eengms62slq876jbka';
 const CACHE_KEY = 'productsCache';
 const CACHE_TTL = 5 * 60 * 1000;
@@ -118,15 +119,15 @@ function renderProductsFromData(products, reviewsData) {
         <div class="variant-row">
           ${firstVariant.options.map(opt => `
             <span class="variant-pill${opt.stock === 0 ? ' disabled' : ''}${opt.value === defaultOption.value ? ' active' : ''}"
-                  data-value="${opt.value}" data-stock="${opt.stock}">
+                  data-value="${opt.value}" data-stock="${opt.stock ?? 0}">
               ${opt.value}
             </span>
           `).join('')}
         </div>`;
-      variantStockHtml = `<span class="variant-stock">Осталось: ${defaultOption.stock} шт.</span>`;
+      variantStockHtml = `<span class="variant-stock">Осталось: ${defaultOption.stock ?? 0} шт.</span>`;
     } else {
       variantsHtml = '<div class="variant-row-placeholder"></div>';
-      variantStockHtml = `<span class="stock-badge">Осталось: ${p.stock || 0} шт.</span>`;
+      variantStockHtml = `<span class="stock-badge">Осталось: ${p.stock ?? 0} шт.</span>`;
     }
 
     let priceBlockHtml = `<div class="price">${p.price.toLocaleString()} ₽</div>`;
@@ -229,7 +230,7 @@ function addCardListeners(card) {
 
 function createCartControls(card, product) {
   const variantRow = card.querySelector('.variant-row');
-  let maxStock = product.stock || 0;
+  let maxStock = product.stock ?? 0;
   let variantValue = null;
   if (variantRow && product.variants?.length) {
     const activePill = variantRow.querySelector('.variant-pill.active');
@@ -307,15 +308,15 @@ function createProductCardHtml(product) {
       <div class="variant-row">
         ${firstVariant.options.map(opt => `
           <span class="variant-pill${opt.stock === 0 ? ' disabled' : ''}${opt.value === defaultOption.value ? ' active' : ''}"
-                data-value="${opt.value}" data-stock="${opt.stock}">
+                data-value="${opt.value}" data-stock="${opt.stock ?? 0}">
             ${opt.value}
           </span>
         `).join('')}
       </div>`;
-    variantStockHtml = `<span class="variant-stock">Осталось: ${defaultOption.stock} шт.</span>`;
+    variantStockHtml = `<span class="variant-stock">Осталось: ${defaultOption.stock ?? 0} шт.</span>`;
   } else {
     variantsHtml = '<div class="variant-row-placeholder"></div>';
-    variantStockHtml = `<span class="stock-badge">Осталось: ${product.stock || 0} шт.</span>`;
+    variantStockHtml = `<span class="stock-badge">Осталось: ${product.stock ?? 0} шт.</span>`;
   }
   let priceBlockHtml = `<div class="price">${product.price.toLocaleString()} ₽</div>`;
   if (product.oldPrice && product.oldPrice > product.price) {
@@ -361,7 +362,7 @@ function updateProductCardFromData(card, product) {
     variantRow.innerHTML = variant.options.map(opt => {
       const isActive = opt.value === activeValue && opt.stock > 0;
       return `<span class="variant-pill${opt.stock === 0 ? ' disabled' : ''}${isActive ? ' active' : ''}"
-                   data-value="${opt.value}" data-stock="${opt.stock}">${opt.value}</span>`;
+                   data-value="${opt.value}" data-stock="${opt.stock ?? 0}">${opt.value}</span>`;
     }).join('');
     if (!variantRow.querySelector('.variant-pill.active')) {
       const firstAvailable = variantRow.querySelector('.variant-pill:not(.disabled)');
@@ -370,7 +371,7 @@ function updateProductCardFromData(card, product) {
     const newActive = variantRow.querySelector('.variant-pill.active');
     stockText = newActive ? `Осталось: ${newActive.dataset.stock} шт.` : 'Нет в наличии';
   } else {
-    stockText = `Осталось: ${product.stock || 0} шт.`;
+    stockText = `Осталось: ${product.stock ?? 0} шт.`;
     if (!card.querySelector('.variant-row-placeholder') && !card.querySelector('.variant-row')) {
       const placeholder = document.createElement('div');
       placeholder.className = 'variant-row-placeholder';
@@ -440,7 +441,7 @@ function handleCartAction(e) {
   if (!product) return;
 
   const variant = getSelectedVariant(productId);
-  const maxStock = variant ? variant.stock : (product.stock || 0);
+  const maxStock = variant ? variant.stock : (product.stock ?? 0);
 
   if (action === 'add') {
     if (maxStock <= 0) return;
@@ -472,7 +473,7 @@ function handleCartAction(e) {
 }
 
 function addToCart(product, delta = 1, variant = null) {
-  const maxStock = variant ? variant.stock : (product.stock || 0);
+  const maxStock = variant ? variant.stock : (product.stock ?? 0);
   if (maxStock <= 0 && delta > 0) return;
 
   const existing = cart.find(item => item.id === product.id && 
@@ -532,7 +533,7 @@ function renderCart() {
   if (cart.length === 0) { container.innerHTML = '<p>Корзина пуста</p>'; totalEl.textContent = '0'; return; }
   container.innerHTML = cart.map(item => {
     const product = currentProducts.find(p => p.id === item.id);
-    let max = product ? (product.stock || 0) : 0;
+    let max = product ? (product.stock ?? 0) : 0;
     if (item.variant && product && Array.isArray(product.variants)) {
       const variant = product.variants.find(v => v.name === item.variant.name);
       if (variant && Array.isArray(variant.options)) {
@@ -571,11 +572,12 @@ function handleCartItemAction(e) {
   const productId = e.target.dataset.id;
   const variantValue = e.target.dataset.variantValue;
   const product = currentProducts.find(p => p.id === productId);
-  const variant = variantValue && product ? { name: product?.variants?.[0]?.name, value: variantValue } : null;
-  const cartItem = cart.find(item => item.id === productId && item.variant?.value === variant?.value);
+  const variantKey = variantValue || undefined;
+  const variant = variantKey && product ? { name: product?.variants?.[0]?.name, value: variantKey } : null;
+  const cartItem = cart.find(item => item.id === productId && item.variant?.value === variantKey);
   if (!cartItem) return;
   if (action === 'cart-increase') {
-    let max = product ? (product.stock || 0) : 0;
+    let max = product ? (product.stock ?? 0) : 0;
     if (variant && product && Array.isArray(product.variants)) {
       const foundVariant = product.variants.find(v => v.name === variant.name);
       if (foundVariant && Array.isArray(foundVariant.options)) {

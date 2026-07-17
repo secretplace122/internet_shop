@@ -1,3 +1,4 @@
+// js/product.js
 const params = new URLSearchParams(window.location.search);
 const productId = window.PRODUCT_ID || params.get('id');
 
@@ -143,7 +144,7 @@ function updateProductInfo() {
     const options = variant.options;
     const activeValue = selectedVariant && options.some(o => o.value === selectedVariant.value && o.stock > 0)
       ? selectedVariant.value : (options.find(o => o.stock > 0) || options[0])?.value;
-    if (container) container.innerHTML = options.map(opt => `<span class="variant-pill${opt.value === activeValue ? ' active' : ''}${opt.stock === 0 ? ' disabled' : ''}" data-value="${opt.value}" data-stock="${opt.stock}">${opt.value}</span>`).join('');
+    if (container) container.innerHTML = options.map(opt => `<span class="variant-pill${opt.value === activeValue ? ' active' : ''}${opt.stock === 0 ? ' disabled' : ''}" data-value="${opt.value}" data-stock="${opt.stock ?? 0}">${opt.value}</span>`).join('');
     const activeOption = options.find(o => o.value === activeValue);
     if (activeOption) { selectedVariant = { name: variant.name, value: activeOption.value }; currentMaxStock = activeOption.stock; if (stockInfo) stockInfo.textContent = `Доступно: ${activeOption.stock} шт.`; }
     else { selectedVariant = null; currentMaxStock = 0; if (stockInfo) stockInfo.textContent = 'Нет в наличии'; }
@@ -156,7 +157,8 @@ function updateProductInfo() {
       updateControlsForStock(stock);
     }));
   } else {
-    currentMaxStock = product.stock || 0;
+    currentMaxStock = product.stock ?? 0;
+    selectedVariant = null;
     if (stockInfo) stockInfo.textContent = `Осталось: ${currentMaxStock} шт.`;
   }
   updateControlsForStock(currentMaxStock);
@@ -206,7 +208,7 @@ function afterProductLoad() {
   loadReviewsData().then(() => {
     renderProduct();
     if (product.variants && product.variants.length > 0) setupVariantSelector();
-    else { currentMaxStock = product.stock || 0; updateControlsForStock(currentMaxStock); }
+    else { currentMaxStock = product.stock ?? 0; updateControlsForStock(currentMaxStock); }
     updateCartUI();
   });
 }
@@ -243,7 +245,7 @@ function setupVariantSelector() {
   const options = variant.options;
   const firstAvailable = options.find(o => o.stock > 0);
   const activeValue = firstAvailable ? firstAvailable.value : (options.length ? options[0].value : null);
-  container.innerHTML = options.map(opt => `<span class="variant-pill ${opt.value === activeValue ? ' active' : ''} ${opt.stock === 0 ? ' disabled' : ''}" data-value="${opt.value}" data-stock="${opt.stock}">${opt.value}</span>`).join('');
+  container.innerHTML = options.map(opt => `<span class="variant-pill ${opt.value === activeValue ? ' active' : ''} ${opt.stock === 0 ? ' disabled' : ''}" data-value="${opt.value}" data-stock="${opt.stock ?? 0}">${opt.value}</span>`).join('');
   if (firstAvailable) { selectedVariant = { name: variant.name, value: firstAvailable.value }; currentMaxStock = firstAvailable.stock; document.getElementById('stock-info').textContent = `Доступно: ${firstAvailable.stock} шт.`; }
   else { selectedVariant = null; currentMaxStock = 0; document.getElementById('stock-info').textContent = 'Нет в наличии'; }
   updateControlsForStock(currentMaxStock);
@@ -375,10 +377,11 @@ function handleCartAction(e) {
   const action = e.target.dataset.action;
   const productId = e.target.dataset.id;
   const variantValue = e.target.dataset.variantValue;
-  const item = cart.find(i => i.id === productId && i.variant?.value === variantValue);
+  const variantKey = variantValue || undefined;
+  const item = cart.find(i => i.id === productId && i.variant?.value === variantKey);
   if (!item) return;
   if (action === 'cart-increase') {
-    let max = product ? (product.stock || 0) : 0;
+    let max = product ? (product.stock ?? 0) : 0;
     if (item.variant && product && Array.isArray(product.variants)) {
       const foundVariant = product.variants.find(v => v.name === item.variant.name);
       if (foundVariant && Array.isArray(foundVariant.options)) {
@@ -389,9 +392,9 @@ function handleCartAction(e) {
     if (item.qty < max) item.qty += 1;
   } else if (action === 'cart-decrease') {
     if (item.qty > 1) item.qty -= 1;
-    else cart = cart.filter(i => !(i.id === productId && i.variant?.value === variantValue));
+    else cart = cart.filter(i => !(i.id === productId && i.variant?.value === variantKey));
   } else if (action === 'cart-remove') {
-    cart = cart.filter(i => !(i.id === productId && i.variant?.value === variantValue));
+    cart = cart.filter(i => !(i.id === productId && i.variant?.value === variantKey));
   }
   localStorage.setItem('cart', JSON.stringify(cart));
   updateCartUI(); renderCart();
