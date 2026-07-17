@@ -50,7 +50,7 @@
       <div class="variant-pills" id="variant-pills">
         
       </div>
-      <div class="stock-info" id="stock-info">Осталось: 5 шт.</div>
+      <div class="stock-info" id="stock-info">Осталось: 2 шт.</div>
       <div class="quantity-row">
         <div class="quantity-picker" id="quantity-picker" style="display: none;">
           <button class="qty-btn" id="qty-decrease">−</button>
@@ -63,11 +63,20 @@
     </div>
   </main>
 
+  <section class="also-interesting container">
+    <h3>Также может быть интересно:</h3>
+    <div class="also-interesting-grid" id="also-interesting-grid"></div>
+  </section>
+
   <section class="reviews-section container">
     <h2>Отзывы</h2>
     <div class="review-form">
       <h3>Оставить отзыв</h3>
-      <input type="text" id="review-author" placeholder="Ваше имя" required>
+      <div class="author-avatar">
+        <div class="avatar-icon">👤</div>
+        <input type="text" id="review-author" placeholder="Ваше имя" required>
+      </div>
+      <label class="star-rating-label">Оцените товар:</label>
       <div class="star-rating" id="star-rating">
         <span data-rating="1">☆</span><span data-rating="2">☆</span><span data-rating="3">☆</span><span data-rating="4">☆</span><span data-rating="5">☆</span>
       </div>
