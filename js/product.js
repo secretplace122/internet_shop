@@ -1,4 +1,3 @@
-// js/product.js
 const params = new URLSearchParams(window.location.search);
 const productId = window.PRODUCT_ID || params.get('id');
 
@@ -146,13 +145,13 @@ function updateProductInfo() {
       ? selectedVariant.value : (options.find(o => o.stock > 0) || options[0])?.value;
     if (container) container.innerHTML = options.map(opt => `<span class="variant-pill${opt.value === activeValue ? ' active' : ''}${opt.stock === 0 ? ' disabled' : ''}" data-value="${opt.value}" data-stock="${opt.stock ?? 0}">${opt.value}</span>`).join('');
     const activeOption = options.find(o => o.value === activeValue);
-    if (activeOption) { selectedVariant = { name: variant.name, value: activeOption.value }; currentMaxStock = activeOption.stock; if (stockInfo) stockInfo.textContent = `Доступно: ${activeOption.stock} шт.`; }
+    if (activeOption) { selectedVariant = { name: variant.name || 'Размер', value: activeOption.value }; currentMaxStock = activeOption.stock; if (stockInfo) stockInfo.textContent = `Доступно: ${activeOption.stock} шт.`; }
     else { selectedVariant = null; currentMaxStock = 0; if (stockInfo) stockInfo.textContent = 'Нет в наличии'; }
     if (container) container.querySelectorAll('.variant-pill:not(.disabled)').forEach(pill => pill.addEventListener('click', () => {
       container.querySelectorAll('.variant-pill').forEach(p => p.classList.remove('active'));
       pill.classList.add('active');
       const value = pill.dataset.value; const stock = parseInt(pill.dataset.stock);
-      selectedVariant = { name: variant.name, value }; currentMaxStock = stock;
+      selectedVariant = { name: variant.name || 'Размер', value }; currentMaxStock = stock;
       if (stockInfo) stockInfo.textContent = `Доступно: ${stock} шт.`;
       updateControlsForStock(stock);
     }));
@@ -246,14 +245,14 @@ function setupVariantSelector() {
   const firstAvailable = options.find(o => o.stock > 0);
   const activeValue = firstAvailable ? firstAvailable.value : (options.length ? options[0].value : null);
   container.innerHTML = options.map(opt => `<span class="variant-pill ${opt.value === activeValue ? ' active' : ''} ${opt.stock === 0 ? ' disabled' : ''}" data-value="${opt.value}" data-stock="${opt.stock ?? 0}">${opt.value}</span>`).join('');
-  if (firstAvailable) { selectedVariant = { name: variant.name, value: firstAvailable.value }; currentMaxStock = firstAvailable.stock; document.getElementById('stock-info').textContent = `Доступно: ${firstAvailable.stock} шт.`; }
+  if (firstAvailable) { selectedVariant = { name: variant.name || 'Размер', value: firstAvailable.value }; currentMaxStock = firstAvailable.stock; document.getElementById('stock-info').textContent = `Доступно: ${firstAvailable.stock} шт.`; }
   else { selectedVariant = null; currentMaxStock = 0; document.getElementById('stock-info').textContent = 'Нет в наличии'; }
   updateControlsForStock(currentMaxStock);
   container.querySelectorAll('.variant-pill:not(.disabled)').forEach(pill => pill.addEventListener('click', () => {
     container.querySelectorAll('.variant-pill').forEach(p => p.classList.remove('active'));
     pill.classList.add('active');
     const value = pill.dataset.value; const stock = parseInt(pill.dataset.stock);
-    selectedVariant = { name: variant.name, value }; currentMaxStock = stock;
+    selectedVariant = { name: variant.name || 'Размер', value }; currentMaxStock = stock;
     document.getElementById('stock-info').textContent = `Доступно: ${stock} шт.`;
     updateControlsForStock(stock);
   }));

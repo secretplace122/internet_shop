@@ -1,4 +1,3 @@
-// js/app.js
 const API_URL = 'https://functions.yandexcloud.net/d4eengms62slq876jbka';
 const CACHE_KEY = 'productsCache';
 const CACHE_TTL = 5 * 60 * 1000;
@@ -116,7 +115,7 @@ function renderProductsFromData(products, reviewsData) {
       const available = firstVariant.options.find(o => o.stock > 0);
       const defaultOption = available || firstVariant.options[0];
       variantsHtml = `
-        <div class="variant-row">
+        <div class="variant-row" data-variant-name="${firstVariant.name || 'Размер'}">
           ${firstVariant.options.map(opt => `
             <span class="variant-pill${opt.stock === 0 ? ' disabled' : ''}${opt.value === defaultOption.value ? ' active' : ''}"
                   data-value="${opt.value}" data-stock="${opt.stock ?? 0}">
@@ -305,7 +304,7 @@ function createProductCardHtml(product) {
     const available = firstVariant.options.find(o => o.stock > 0);
     const defaultOption = available || firstVariant.options[0];
     variantsHtml = `
-      <div class="variant-row">
+      <div class="variant-row" data-variant-name="${firstVariant.name || 'Размер'}">
         ${firstVariant.options.map(opt => `
           <span class="variant-pill${opt.stock === 0 ? ' disabled' : ''}${opt.value === defaultOption.value ? ' active' : ''}"
                 data-value="${opt.value}" data-stock="${opt.stock ?? 0}">
@@ -364,6 +363,7 @@ function updateProductCardFromData(card, product) {
       return `<span class="variant-pill${opt.stock === 0 ? ' disabled' : ''}${isActive ? ' active' : ''}"
                    data-value="${opt.value}" data-stock="${opt.stock ?? 0}">${opt.value}</span>`;
     }).join('');
+    variantRow.setAttribute('data-variant-name', variant.name || 'Размер');
     if (!variantRow.querySelector('.variant-pill.active')) {
       const firstAvailable = variantRow.querySelector('.variant-pill:not(.disabled)');
       if (firstAvailable) firstAvailable.classList.add('active');
@@ -418,7 +418,9 @@ function getSelectedVariant(productId) {
   if (!card) return null;
   const activePill = card.querySelector('.variant-pill.active');
   if (!activePill) return null;
-  const variantName = card.querySelector('.variant-row')?.dataset?.variantName;
+  const variantRow = card.querySelector('.variant-row');
+  const product = currentProducts.find(p => p.id === productId);
+  const variantName = variantRow?.dataset?.variantName || product?.variants?.[0]?.name || 'Размер';
   return { name: variantName, value: activePill.dataset.value, stock: parseInt(activePill.dataset.stock) };
 }
 
@@ -468,7 +470,6 @@ function handleCartAction(e) {
   }
   updateCartUI();
   updateCartControlsForCard(productId);
-  updateAllCartControls();
   if (document.getElementById('cart-modal').style.display === 'flex') renderCart();
 }
 
@@ -573,7 +574,7 @@ function handleCartItemAction(e) {
   const variantValue = e.target.dataset.variantValue;
   const product = currentProducts.find(p => p.id === productId);
   const variantKey = variantValue || undefined;
-  const variant = variantKey && product ? { name: product?.variants?.[0]?.name, value: variantKey } : null;
+  const variant = variantKey && product ? { name: product?.variants?.[0]?.name || 'Размер', value: variantKey } : null;
   const cartItem = cart.find(item => item.id === productId && item.variant?.value === variantKey);
   if (!cartItem) return;
   if (action === 'cart-increase') {
@@ -592,7 +593,8 @@ function handleCartItemAction(e) {
   } else if (action === 'cart-remove') {
     removeFromCart(productId, variant);
   }
-  renderCart(); updateCartUI(); updateAllCartControls();
+  renderCart(); updateCartUI();
+  updateCartControlsForCard(productId);
 }
 
 function updateAllCartControls() {
@@ -632,7 +634,7 @@ function showCheckoutForm() {
     payBtn.textContent = 'Создаём платёж...';
     errorEl.textContent = '';
     const orderData = {
-      items: cart.map(item => ({ id: item.id, qty: item.qty, variantName: item.variant ? item.variant.name : null, variantValue: item.variant ? item.variant.value : null })),
+      items: cart.map(item => ({ id: item.id, qty: item.qty, variantName: item.variant?.name || null, variantValue: item.variant?.value || null })),
       customerName: document.getElementById('customer-name').value.trim(),
       customerPhone: document.getElementById('customer-phone').value.trim(),
       customerEmail: document.getElementById('customer-email').value.trim(),
