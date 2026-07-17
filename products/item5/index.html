@@ -16,9 +16,20 @@
   <script defer src="js/product.js"></script>
 </head>
 <body>
-  <header class="product-header">
-    <a href="index.html" class="back-link">← Назад</a>
-  </header>
+  <nav id="main-nav" class="main-nav">
+    <div class="nav-pill" id="nav-pill">
+      <button class="nav-toggle" id="nav-toggle" aria-label="Меню">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+        <span class="nav-brand">Магазин</span>
+      </button>
+      <div class="nav-links" id="nav-links">
+        <a href="index.html" class="nav-link">Главная</a>
+        <a href="index.html#catalog" class="nav-link">Каталог</a>
+        <a href="#" class="nav-link" id="nav-cart">Корзина</a>
+        <a href="index.html#info" class="nav-link">Контакты</a>
+      </div>
+    </div>
+  </nav>
 
   <main class="product-main container">
     <div class="product-gallery" id="product-gallery">
@@ -35,10 +46,10 @@
       <h1 id="product-title">1112222222222222</h1>
       <div class="rating-row" id="rating-row">
         <span class="rating-star">★</span>
-        <span class="rating-value" id="avg-rating">3.0</span>
+        <span class="rating-value" id="avg-rating">0.0</span>
         <span class="review-icon">
           <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-          <span id="review-count">1</span>
+          <span id="review-count">0</span>
         </span>
       </div>
       <p id="product-description">тест загрузкитест загрузкитест загрузкитест загрузкитест загрузкитест загрузкитест загрузкитест загрузкитест загрузкитест загрузки</p>
@@ -65,7 +76,7 @@
 
   <section class="also-interesting container">
     <h3>Также может быть интересно:</h3>
-    <div class="also-interesting-grid" id="also-interesting-grid"></div>
+    <div class="also-scroll" id="also-interesting-scroll"></div>
   </section>
 
   <section class="reviews-section container">
