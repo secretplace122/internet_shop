@@ -81,9 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const productModal = document.getElementById('product-modal');
   document.querySelectorAll('.close').forEach(closeBtn => {
-    closeBtn.addEventListener('click', () => {
-      productModal.style.display = 'none';
-    });
+    closeBtn.addEventListener('click', () => { productModal.style.display = 'none'; });
   });
 
   document.getElementById('product-has-badge').addEventListener('change', (e) => {
@@ -151,11 +149,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let variants = null;
     let stock = 0;
-    if (options.length > 0) {
-      variants = [{ name: 'Размер', options }];
-    } else {
-      stock = parseInt(document.getElementById('product-stock').value) || 0;
-    }
+    if (options.length > 0) variants = [{ name: 'Размер', options }];
+    else stock = parseInt(document.getElementById('product-stock').value) || 0;
 
     const productData = {
       title: document.getElementById('product-title').value,
@@ -169,21 +164,16 @@ document.addEventListener('DOMContentLoaded', () => {
       oldPrice: null
     };
 
-    if (hasBadge) {
-      productData.badge = {
-        text: document.getElementById('badge-text').value || 'Акция',
-        bgColor: document.getElementById('badge-bg').value,
-        color: document.getElementById('badge-color').value
-      };
-    }
-    if (hasOldPrice) {
-      productData.oldPrice = parseInt(document.getElementById('old-price-value').value) || 0;
-    }
+    if (hasBadge) productData.badge = {
+      text: document.getElementById('badge-text').value || 'Акция',
+      bgColor: document.getElementById('badge-bg').value,
+      color: document.getElementById('badge-color').value
+    };
+    if (hasOldPrice) productData.oldPrice = parseInt(document.getElementById('old-price-value').value) || 0;
 
     try {
-      if (id) {
-        await db.collection('products').doc(id).update(productData);
-      } else {
+      if (id) await db.collection('products').doc(id).update(productData);
+      else {
         const newId = await db.runTransaction(async (t) => {
           const counterRef = db.collection('counters').doc('products');
           const snap = await t.get(counterRef);
@@ -199,9 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }, { merge: true });
       productModal.style.display = 'none';
       loadProducts();
-    } catch (err) {
-      alert('Ошибка: ' + err.message);
-    }
+    } catch (err) { alert('Ошибка: ' + err.message); }
   });
 
   async function loadProducts() {
@@ -223,10 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         products.push({ id: doc.id, ...data, totalStock });
       });
-      if (products.length === 0) {
-        container.innerHTML = '<p>Товаров пока нет.</p>';
-        return;
-      }
+      if (products.length === 0) { container.innerHTML = '<p>Товаров пока нет.</p>'; return; }
 
       container.innerHTML = products.map(p => {
         const allImages = [p.image, ...(p.images || [])];
@@ -274,13 +259,11 @@ document.addEventListener('DOMContentLoaded', () => {
           dots.forEach(dot => dot.classList.remove('active'));
           if (dots[index]) dots[index].classList.add('active');
         });
-        dots.forEach(dot => {
-          dot.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const idx = parseInt(dot.dataset.index);
-            slider.scrollTo({ left: idx * slider.clientWidth, behavior: 'smooth' });
-          });
-        });
+        dots.forEach(dot => dot.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(dot.dataset.index);
+          slider.scrollTo({ left: idx * slider.clientWidth, behavior: 'smooth' });
+        }));
       });
 
       container.querySelectorAll('.edit').forEach(btn => {
@@ -300,9 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         });
       });
-    } catch (err) {
-      container.innerHTML = '<p>Ошибка: ' + err.message + '</p>';
-    }
+    } catch (err) { container.innerHTML = '<p>Ошибка: ' + err.message + '</p>'; }
   }
 
   function editProduct(product) {
@@ -341,9 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
       document.getElementById('product-stock').value = 0;
-    } else {
-      document.getElementById('product-stock').value = product.stock || 0;
-    }
+    } else document.getElementById('product-stock').value = product.stock || 0;
     updateTotalStock();
 
     if (product.badge) {

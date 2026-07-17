@@ -305,20 +305,15 @@ function setupAddToCart() {
   increaseBtn.addEventListener('click', () => {
     if (!product) return;
     const currentQty = getCartQuantity(selectedVariant);
-    const maxStock = currentMaxStock;
-    if (currentQty >= maxStock) { messageEl.textContent = `Максимально доступно: ${maxStock}`; return; }
+    if (currentQty >= currentMaxStock) { messageEl.textContent = `Максимально доступно: ${currentMaxStock}`; return; }
     const item = cart.find(i => i.id === product.id && i.variant?.value === (selectedVariant ? selectedVariant.value : undefined));
     if (item) item.qty = currentQty + 1;
     else cart.push({
-      id: product.id,
-      title: product.title,
-      price: product.price,
-      image: product.image,
-      qty: 1,
-      variant: selectedVariant ? { name: selectedVariant.name, value: selectedVariant.value } : null
+      id: product.id, title: product.title, price: product.price, image: product.image,
+      qty: 1, variant: selectedVariant ? { name: selectedVariant.name, value: selectedVariant.value } : null
     });
     localStorage.setItem('cart', JSON.stringify(cart));
-    updateControlsForStock(maxStock);
+    updateControlsForStock(currentMaxStock);
     updateCartUI();
     messageEl.textContent = 'Товар добавлен в корзину!';
   });
@@ -336,7 +331,7 @@ function setupCart() {
   window.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
   document.getElementById('checkout-btn').addEventListener('click', () => {
     if (cart.length === 0) alert('Корзина пуста');
-    else { localStorage.removeItem(PRODUCT_CACHE_PREFIX + productId); window.location.href = 'index.html?checkout=open'; }
+    else window.location.href = 'index.html?checkout=open';
   });
 }
 
@@ -350,37 +345,26 @@ function renderCart() {
   const totalEl = document.getElementById('cart-total-price');
   if (!container || !totalEl) return;
   if (cart.length === 0) { container.innerHTML = '<p>Корзина пуста</p>'; totalEl.textContent = '0'; return; }
-  container.innerHTML = cart.map(item => {
-    const product = currentProducts ? currentProducts.find(p => p.id === item.id) : null;
-    let max = product ? (product.stock || 0) : 0;
-    if (item.variant && product && Array.isArray(product.variants)) {
-      const variant = product.variants.find(v => v.name === item.variant.name);
-      if (variant && Array.isArray(variant.options)) {
-        const option = variant.options.find(o => o.value === item.variant.value);
-        if (option) max = option.stock;
-      }
-    }
-    return `
-      <div class="cart-item">
-        <div class="cart-item-info">
-          <img src="${item.image}" alt="${item.title}" class="cart-item-image">
-          <div class="cart-item-details">
-            <div class="cart-item-title">${item.title}</div>
-            ${item.variant ? `<div class="cart-item-variant">${item.variant.name}: ${item.variant.value}</div>` : ''}
-            <div class="cart-item-price">${item.price.toLocaleString()} ₽</div>
-          </div>
-        </div>
-        <div class="cart-item-actions">
-          <div class="cart-item-qty">
-            <button class="cart-qty-btn" data-action="cart-decrease" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">−</button>
-            <span>${item.qty}</span>
-            <button class="cart-qty-btn" data-action="cart-increase" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">+</button>
-          </div>
-          <button class="cart-remove-btn" data-action="cart-remove" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">🗑</button>
+  container.innerHTML = cart.map(item => `
+    <div class="cart-item">
+      <div class="cart-item-info">
+        <img src="${item.image}" alt="${item.title}" class="cart-item-image">
+        <div class="cart-item-details">
+          <div class="cart-item-title">${item.title}</div>
+          ${item.variant ? `<div class="cart-item-variant">${item.variant.name}: ${item.variant.value}</div>` : ''}
+          <div class="cart-item-price">${item.price.toLocaleString()} ₽</div>
         </div>
       </div>
-    `;
-  }).join('');
+      <div class="cart-item-actions">
+        <div class="cart-item-qty">
+          <button class="cart-qty-btn" data-action="cart-decrease" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">−</button>
+          <span>${item.qty}</span>
+          <button class="cart-qty-btn" data-action="cart-increase" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">+</button>
+        </div>
+        <button class="cart-remove-btn" data-action="cart-remove" data-id="${item.id}" data-variant-value="${item.variant?.value || ''}">🗑</button>
+      </div>
+    </div>
+  `).join('');
   const actionButtons = container.querySelectorAll('[data-action]');
   actionButtons.forEach(btn => { btn.removeEventListener('click', handleCartAction); btn.addEventListener('click', handleCartAction); });
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
@@ -393,9 +377,22 @@ function handleCartAction(e) {
   const variantValue = e.target.dataset.variantValue;
   const item = cart.find(i => i.id === productId && i.variant?.value === variantValue);
   if (!item) return;
-  if (action === 'cart-increase') { item.qty += 1; }
-  else if (action === 'cart-decrease') { if (item.qty > 1) item.qty -= 1; else cart = cart.filter(i => !(i.id === productId && i.variant?.value === variantValue)); }
-  else if (action === 'cart-remove') { cart = cart.filter(i => !(i.id === productId && i.variant?.value === variantValue)); }
+  if (action === 'cart-increase') {
+    let max = product ? (product.stock || 0) : 0;
+    if (item.variant && product && Array.isArray(product.variants)) {
+      const foundVariant = product.variants.find(v => v.name === item.variant.name);
+      if (foundVariant && Array.isArray(foundVariant.options)) {
+        const option = foundVariant.options.find(o => o.value === item.variant.value);
+        if (option) max = option.stock;
+      }
+    }
+    if (item.qty < max) item.qty += 1;
+  } else if (action === 'cart-decrease') {
+    if (item.qty > 1) item.qty -= 1;
+    else cart = cart.filter(i => !(i.id === productId && i.variant?.value === variantValue));
+  } else if (action === 'cart-remove') {
+    cart = cart.filter(i => !(i.id === productId && i.variant?.value === variantValue));
+  }
   localStorage.setItem('cart', JSON.stringify(cart));
   updateCartUI(); renderCart();
   if (product && productId === product.id) updateControlsForStock(currentMaxStock);

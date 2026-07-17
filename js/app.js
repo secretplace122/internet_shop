@@ -7,12 +7,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   await checkDataVersion();
   const urlParams = new URLSearchParams(window.location.search);
   const forceRefresh = urlParams.has('refresh');
-  if (urlParams.get('checkout') === 'open') {
-    setTimeout(() => showCheckoutForm(), 500);
-  }
   await loadProductsFromFirestore(forceRefresh);
   setupCart();
   subscribeToProducts();
+  if (urlParams.get('checkout') === 'open') {
+    setTimeout(() => showCheckoutForm(), 500);
+  }
 });
 
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
@@ -438,21 +438,33 @@ function handleCartAction(e) {
   const productId = e.target.dataset.id || e.target.closest('.product-card').dataset.id;
   const product = currentProducts.find(p => p.id === productId);
   if (!product) return;
+
   const variant = getSelectedVariant(productId);
   const maxStock = variant ? variant.stock : (product.stock || 0);
-  if (action === 'add') { if (maxStock <= 0) return; addToCart(product, 1, variant); }
-  else if (action === 'increase') {
-    const cartItem = cart.find(item => item.id === productId && (variant ? item.variant?.value === variant.value : !item.variant));
-    if (cartItem && cartItem.qty < maxStock) addToCart(product, 1, variant);
-  }
-  else if (action === 'decrease') {
-    const cartItem = cart.find(item => item.id === productId && (variant ? item.variant?.value === variant.value : !item.variant));
-    if (cartItem) {
-      if (cartItem.qty > 1) addToCart(product, -1, variant);
-      else removeFromCart(productId, variant);
+
+  if (action === 'add') {
+    if (maxStock <= 0) return;
+    addToCart(product, 1, variant);
+  } else if (action === 'increase') {
+    const cartItem = cart.find(item => item.id === productId && 
+      (variant ? item.variant?.value === variant.value : !item.variant));
+    if (cartItem && cartItem.qty < maxStock) {
+      addToCart(product, 1, variant);
     }
+  } else if (action === 'decrease') {
+    const cartItem = cart.find(item => item.id === productId && 
+      (variant ? item.variant?.value === variant.value : !item.variant));
+    if (cartItem) {
+      if (cartItem.qty > 1) {
+        addToCart(product, -1, variant);
+      } else {
+        removeFromCart(productId, variant);
+      }
+    }
+  } else if (action === 'go-cart') {
+    document.getElementById('cart-modal').style.display = 'flex';
+    renderCart();
   }
-  else if (action === 'go-cart') { document.getElementById('cart-modal').style.display = 'flex'; renderCart(); }
   updateCartUI();
   updateCartControlsForCard(productId);
   updateAllCartControls();
@@ -461,13 +473,17 @@ function handleCartAction(e) {
 
 function addToCart(product, delta = 1, variant = null) {
   const maxStock = variant ? variant.stock : (product.stock || 0);
-  if (maxStock <= 0) return;
-  const existing = cart.find(item => item.id === product.id && (variant ? item.variant?.value === variant.value : !item.variant));
+  if (maxStock <= 0 && delta > 0) return;
+
+  const existing = cart.find(item => item.id === product.id && 
+    (variant ? item.variant?.value === variant.value : !item.variant));
   const currentQty = existing ? existing.qty : 0;
   const newQty = currentQty + delta;
+
   if (newQty > maxStock) return;
   if (newQty <= 0) {
-    cart = cart.filter(item => !(item.id === product.id && (variant ? item.variant?.value === variant.value : !item.variant)));
+    cart = cart.filter(item => !(item.id === product.id && 
+      (variant ? item.variant?.value === variant.value : !item.variant)));
   } else if (existing) {
     existing.qty = newQty;
   } else {
@@ -484,7 +500,8 @@ function addToCart(product, delta = 1, variant = null) {
 }
 
 function removeFromCart(productId, variant = null) {
-  cart = cart.filter(item => !(item.id === productId && (variant ? item.variant?.value === variant.value : !item.variant)));
+  cart = cart.filter(item => !(item.id === productId && 
+    (variant ? item.variant?.value === variant.value : !item.variant)));
   saveCart();
 }
 
@@ -555,10 +572,11 @@ function handleCartItemAction(e) {
   const variantValue = e.target.dataset.variantValue;
   const product = currentProducts.find(p => p.id === productId);
   const variant = variantValue && product ? { name: product?.variants?.[0]?.name, value: variantValue } : null;
-  const cartItem = cart.find(item => item.id === productId && (variant ? item.variant?.value === variant.value : !item.variant));
-  if (action === 'cart-increase' && cartItem && product) {
-    let max = product.stock || 0;
-    if (variant && Array.isArray(product.variants)) {
+  const cartItem = cart.find(item => item.id === productId && item.variant?.value === variant?.value);
+  if (!cartItem) return;
+  if (action === 'cart-increase') {
+    let max = product ? (product.stock || 0) : 0;
+    if (variant && product && Array.isArray(product.variants)) {
       const foundVariant = product.variants.find(v => v.name === variant.name);
       if (foundVariant && Array.isArray(foundVariant.options)) {
         const option = foundVariant.options.find(o => o.value === variant.value);
@@ -566,10 +584,12 @@ function handleCartItemAction(e) {
       }
     }
     if (cartItem.qty < max) { cartItem.qty += 1; saveCart(); }
-  } else if (action === 'cart-decrease' && cartItem) {
+  } else if (action === 'cart-decrease') {
     if (cartItem.qty > 1) { cartItem.qty -= 1; saveCart(); }
     else removeFromCart(productId, variant);
-  } else if (action === 'cart-remove') removeFromCart(productId, variant);
+  } else if (action === 'cart-remove') {
+    removeFromCart(productId, variant);
+  }
   renderCart(); updateCartUI(); updateAllCartControls();
 }
 
